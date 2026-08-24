@@ -1,0 +1,241 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-black: var(--brand-black);
+  --color-brand-gray: var(--brand-gray);
+
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-brand: 0 20px 40px -16px color-mix(in oklab, var(--brand-orange) 35%, transparent);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* Brand */
+  --brand-orange: oklch(0.7 0.2 41);
+  --brand-black: oklch(0.145 0 0);
+  --brand-gray: oklch(0.97 0.002 286);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.7 0.2 41); /* brand orange */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0.002 286);
+  --secondary-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.97 0.002 286);
+  --muted-foreground: oklch(0.5 0.01 286);
+  --accent: oklch(0.97 0.002 286);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.92 0.005 286);
+  --input: oklch(0.92 0.005 286);
+  --ring: oklch(0.7 0.2 41);
+}
+
+.dark {
+  --background: oklch(0.12 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.17 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.17 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.7 0.2 41);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.22 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.7 0.2 41);
+
+  /* Force background colors on standard white panels/components in dark mode */
+  .bg-white {
+    background-color: var(--color-card) !important;
+  }
+  .bg-brand-gray {
+    background-color: oklch(0.22 0 0) !important;
+  }
+  .bg-neutral-50 {
+    background-color: oklch(0.22 0 0) !important;
+  }
+
+  /* Force text colors on standard dark text elements in dark mode */
+  .text-brand-black {
+    color: var(--color-foreground) !important;
+  }
+  .text-brand-black\/80 {
+    color: oklch(0.985 0 0 / 80%) !important;
+  }
+  .text-brand-black\/70 {
+    color: oklch(0.985 0 0 / 70%) !important;
+  }
+  .text-brand-black\/60 {
+    color: oklch(0.985 0 0 / 60%) !important;
+  }
+  .text-brand-black\/50 {
+    color: oklch(0.985 0 0 / 50%) !important;
+  }
+  .text-brand-black\/40 {
+    color: oklch(0.985 0 0 / 40%) !important;
+  }
+  .text-brand-black\/30 {
+    color: oklch(0.985 0 0 / 30%) !important;
+  }
+
+  /* Force borders to stand out in dark mode */
+  .border-brand-black\/5 {
+    border-color: oklch(1 0 0 / 8%) !important;
+  }
+  .border-brand-black\/10 {
+    border-color: oklch(1 0 0 / 12%) !important;
+  }
+  .border-brand-black\/15 {
+    border-color: oklch(1 0 0 / 18%) !important;
+  }
+  .border-brand-black\/20 {
+    border-color: oklch(1 0 0 / 22%) !important;
+  }
+  .border-brand-black {
+    border-color: var(--color-border) !important;
+  }
+
+  /* Ensure text fields and forms look premium in dark mode */
+  input[type="text"], input[type="email"], input[type="password"], textarea, select {
+    background-color: oklch(0.22 0 0) !important;
+    color: var(--color-foreground) !important;
+    border-color: oklch(1 0 0 / 12%) !important;
+  }
+  input[type="text"]::placeholder, input[type="email"]::placeholder, textarea::placeholder {
+    color: oklch(0.985 0 0 / 40%) !important;
+  }
+
+  /* Preserve high-contrast readable colors for primary dark buttons and tags */
+  button.bg-brand-black, a.bg-brand-black {
+    background-color: oklch(0.985 0 0) !important;
+    color: oklch(0.12 0 0) !important;
+  }
+  button.bg-brand-black:hover, a.bg-brand-black:hover {
+    background-color: var(--color-brand-orange) !important;
+    color: white !important;
+  }
+
+  /* Dialogs and modals styling */
+  .modal, dialog, [role="dialog"] {
+    background-color: oklch(0.17 0 0) !important;
+    color: var(--color-foreground) !important;
+    border-color: oklch(1 0 0 / 10%) !important;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+.studio-dot-grid {
+  background-color: var(--color-brand-gray) !important;
+  background-image: radial-gradient(var(--color-border) 1.5px, transparent 1.5px) !important;
+  background-size: 24px 24px !important;
+}
+
+
+
+
+
+.unseen-thin-border-r {
+  border-right: 1px solid var(--color-border);
+}
+.unseen-thin-border-b {
+  border-bottom: 1px solid var(--color-border);
+}
+.dark .unseen-thin-border-r {
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+.dark .unseen-thin-border-b {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Premium Card Effects */
+.unseen-card {
+  position: relative;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.unseen-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  transition: border-color 0.5s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.unseen-card:hover::after {
+  border-color: var(--color-brand-orange);
+}
+
+/* Kinetic Tilt Wrapper */
+.tilt-wrapper {
+  transform-style: preserve-3d;
+  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
