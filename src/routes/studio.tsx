@@ -1,1162 +1,1797 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState, useEffect } from "react";
-import { PageShell } from "@/components/page-shell";
-import { PRODUCTS, CATEGORIES, type Category, type Product } from "@/lib/products";
-import { getProducts } from "@/lib/products-store";
-import { useAuth } from "@/lib/auth";
-import { getDesigns, type ReferenceDesign } from "@/lib/designs-store";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Circle,
+  Copy,
+  Heart,
+  Image as ImageIcon,
+  Italic,
+  Layers,
+  MousePointer2,
+  Redo2,
+  RotateCw,
+  Save,
+  Shapes,
+  ShoppingCart,
+  Square,
+  Trash2,
+  Triangle,
+  Type as TypeIcon,
+  Underline,
+  Undo2,
+  Upload,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { ALL_APPAREL_COLORS, PRODUCTS, STANDARD_APPAREL_SIZES, type Product } from "@/lib/products";
+import {
+  GarmentImage,
+  contrastInk,
+  fitScaleFor,
+  type GarmentSide,
+  type TargetGroup,
+} from "@/lib/garments";
+import {
+  addToCart,
+  cartCount,
+  clearCart,
+  getCart,
+  removeFromCart,
+  setCartQuantity,
+  type CartItem,
+} from "@/lib/cart-store";
 import { placeOrder } from "@/lib/orders-store";
 import { saveDesignToWishlist } from "@/lib/wishlist-store";
-import teeFront from "@/assets/tee-front.png";
-import teeBack from "@/assets/tee-back.png";
-import { Upload, Type, Save, RotateCcw, Trash2, ShoppingBag, Share2, Heart } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/studio")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    productId?: string | undefined;
+    color?: string | undefined;
+    colorName?: string | undefined;
+    text?: string | undefined;
+    font?: string | undefined;
+    textColor?: string | undefined;
+    fontSize?: string | undefined;
+    graphic?: string | undefined;
+  } => {
+    const str = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : undefined);
+    const out: Record<string, string> = {};
+    for (const key of [
+      "productId",
+      "color",
+      "colorName",
+      "text",
+      "font",
+      "textColor",
+      "fontSize",
+      "graphic",
+    ]) {
+      const value = str(search[key]);
+      if (value) out[key] = value;
+    }
+    return out;
+  },
   head: () => ({
     meta: [
-      { title: "Design Studio — Custom On" },
+      { title: "Design Studio — Custom On Custom Apparel Builder" },
       {
         name: "description",
         content:
-          "Upload artwork, add text, change fonts and colors, and preview your custom T-shirt design live on the front and back.",
+          "Design custom T-shirts, polos and hoodies live: pick a blank, choose a garment colour, add text and artwork, and preview the front and back before you order.",
       },
       { property: "og:title", content: "Design Studio — Custom On" },
       {
         property: "og:description",
-        content: "Custom T-shirt design canvas with live front and back preview.",
+        content: "Live custom apparel design canvas with front and back garment preview.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: StudioPage,
 });
 
-const SHIRT_COLORS = [
-  { name: "White", value: "#FFFFFF", text: "#0A0A0A" },
-  { name: "Black", value: "#0A0A0A", text: "#FFFFFF" },
-  { name: "Orange", value: "#FF5F1F", text: "#FFFFFF" },
-  { name: "Cream", value: "#F5EFE0", text: "#0A0A0A" },
-  { name: "Navy", value: "#1F2A44", text: "#FFFFFF" },
-];
-
-const FONTS = [
-  { label: "Display", value: "'Plus Jakarta Sans', sans-serif" },
-  { label: "Sans", value: "'Inter', sans-serif" },
-  { label: "Serif", value: "Georgia, serif" },
-  { label: "Mono", value: "ui-monospace, SFMono-Regular, monospace" },
-];
-
-type View = "front" | "back";
+/* ------------------------------------------------------------------ */
+/* Constants                                                           */
+/* ------------------------------------------------------------------ */
 
 const COLOR_NAMES: Record<string, string> = {
   "#0A0A0A": "Black",
   "#FFFFFF": "White",
-  "#FF5F1F": "Orange",
   "#1F2A44": "Navy",
-  "#F5EFE0": "Cream",
   "#9CA3AF": "Heather Gray",
-  "#7F1D1D": "Burgundy"
+  "#374151": "Charcoal",
+  "#FF5F1F": "Brand Orange",
+  "#F5EFE0": "Cream",
+  "#7F1D1D": "Maroon",
+  "#2D4A3E": "Forest Green",
+  "#1D4ED8": "Royal Blue",
+  "#38BDF8": "Sky Blue",
+  "#EAB308": "Mustard",
+  "#DC2626": "Red",
+  "#EC4899": "Pink",
+  "#8B5CF6": "Purple",
 };
 
-const getContrastColor = (hex: string) => {
-  const c = hex.substring(1);
-  const rgb = parseInt(c, 16);
-  const r = (rgb >> 16) & 0xff;
-  const g = (rgb >> 8) & 0xff;
-  const b = (rgb >> 0) & 0xff;
-  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luma < 128 ? "#FFFFFF" : "#0A0A0A";
-};
-
-const REFERENCE_DESIGNS = [
-  {
-    name: "Retro Surf Circle",
-    svg: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="%230A0A0A" /><circle cx="50" cy="50" r="42" fill="none" stroke="%23FF5F1F" stroke-width="2" /><path d="M 25,50 A 25,25 0 0,1 75,50 Z" fill="%23FF5F1F" /><line x1="22" y1="54" x2="78" y2="54" stroke="%230A0A0A" stroke-width="2" /><line x1="25" y1="58" x2="75" y2="58" stroke="%230A0A0A" stroke-width="2" /><line x1="30" y1="62" x2="70" y2="62" stroke="%230A0A0A" stroke-width="2" /><path d="M 28,68 Q 39,64 50,68 T 72,68" fill="none" stroke="%23FF5F1F" stroke-width="2" /><path d="M 32,74 Q 41,70 50,74 T 68,74" fill="none" stroke="%23FF5F1F" stroke-width="2" /><text x="50" y="32" fill="%23FFFFFF" font-family="'Plus Jakarta Sans', sans-serif" font-size="7" font-weight="bold" text-anchor="middle" letter-spacing="1">CALIFORNIA</text><text x="50" y="85" fill="%23FFFFFF" font-family="'Plus Jakarta Sans', sans-serif" font-size="6" font-weight="bold" text-anchor="middle" letter-spacing="2">WEST COAST</text></svg>`
-  },
-  {
-    name: "Wilderness Peak",
-    svg: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><polygon points="50,28 72,68 28,68" fill="none" stroke="%230A0A0A" stroke-width="2" /><polygon points="62,42 78,68 46,68" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><circle cx="38" cy="38" r="6" fill="%23FF5F1F" /><line x1="33" y1="68" x2="33" y2="58" stroke="%230A0A0A" stroke-width="1.5" /><polygon points="30,59 36,59 33,53" fill="%230A0A0A" /><line x1="67" y1="68" x2="67" y2="60" stroke="%230A0A0A" stroke-width="1.5" /><polygon points="65,61 69,61 67,56" fill="%230A0A0A" /><line x1="20" y1="68" x2="80" y2="68" stroke="%230A0A0A" stroke-width="2" /><text x="50" y="80" fill="%230A0A0A" font-family="'Plus Jakarta Sans', sans-serif" font-size="8" font-weight="bold" text-anchor="middle" letter-spacing="2">WILDERNESS</text></svg>`
-  },
-  {
-    name: "Retro Creative",
-    svg: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 50"><rect width="150" height="50" rx="8" fill="%230A0A0A" /><line x1="10" y1="12" x2="140" y2="12" stroke="%23FF5F1F" stroke-width="1" stroke-opacity="0.3" /><line x1="10" y1="38" x2="140" y2="38" stroke="%23FF5F1F" stroke-width="1" stroke-opacity="0.3" /><text x="75" y="31" fill="%23FF5F1F" font-family="'Plus Jakarta Sans', sans-serif" font-size="18" font-weight="800" text-anchor="middle" letter-spacing="4">CREATIVE</text><text x="75" y="44" fill="%23FFFFFF" font-family="monospace" font-size="5" font-weight="bold" text-anchor="middle" letter-spacing="3">DESIGN STUDIO v1.0</text></svg>`
-  },
-  {
-    name: "Cyber Grid",
-    svg: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%230A0A0A" rx="10" /><line x1="10" y1="50" x2="90" y2="50" stroke="%231F2A44" stroke-width="0.5" /><line x1="50" y1="10" x2="50" y2="90" stroke="%231F2A44" stroke-width="0.5" /><ellipse cx="50" cy="50" rx="30" ry="30" fill="none" stroke="%23FF5F1F" stroke-width="1.5" /><ellipse cx="50" cy="50" rx="15" ry="30" fill="none" stroke="%23FF5F1F" stroke-width="1" /><ellipse cx="50" cy="50" rx="5" ry="30" fill="none" stroke="%23FF5F1F" stroke-width="0.5" /><ellipse cx="50" cy="50" rx="30" ry="10" fill="none" stroke="%23FF5F1F" stroke-width="1" /><ellipse cx="50" cy="50" rx="30" ry="20" fill="none" stroke="%23FF5F1F" stroke-width="1" /><line x1="15" y1="15" x2="25" y2="15" stroke="%23FFFFFF" stroke-width="1" /><line x1="15" y1="15" x2="15" y2="25" stroke="%23FFFFFF" stroke-width="1" /><line x1="85" y1="85" x2="75" y2="85" stroke="%23FFFFFF" stroke-width="1" /><line x1="85" y1="85" x2="85" y2="75" stroke="%23FFFFFF" stroke-width="1" /><text x="50" y="92" fill="%23FFFFFF" font-family="monospace" font-size="5" text-anchor="middle" letter-spacing="1">SYSTEM OVERRIDE</text></svg>`
-  },
-  {
-    name: "Vintage Bloom",
-    svg: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="8" fill="%23FF5F1F" /><path d="M 50,42 C 45,30 55,30 50,42 Z" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><path d="M 50,58 C 45,70 55,70 50,58 Z" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><path d="M 42,50 C 30,45 30,55 42,50 Z" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><path d="M 58,50 C 70,45 70,55 58,50 Z" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><path d="M 44,44 C 34,34 40,30 44,44 Z" fill="none" stroke="%230A0A0A" stroke-width="1" /><path d="M 56,56 C 66,66 60,70 56,56 Z" fill="none" stroke="%230A0A0A" stroke-width="1" /><path d="M 56,44 C 66,34 70,40 56,44 Z" fill="none" stroke="%230A0A0A" stroke-width="1" /><path d="M 44,56 C 34,66 30,60 44,56 Z" fill="none" stroke="%230A0A0A" stroke-width="1" /><path d="M 50,50 L 50,85" stroke="%230A0A0A" stroke-width="1.5" /><path d="M 50,65 Q 40,60 42,55" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><path d="M 50,72 Q 60,67 58,62" fill="none" stroke="%230A0A0A" stroke-width="1.5" /><text x="50" y="93" fill="%230A0A0A" font-family="'Plus Jakarta Sans', sans-serif" font-size="7" font-weight="bold" text-anchor="middle" letter-spacing="2">BLOOM</text></svg>`
-  }
+const FONTS = [
+  { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
+  { label: "Inter", value: "'Inter', sans-serif" },
+  { label: "Bebas Neue", value: "'Bebas Neue', sans-serif" },
+  { label: "Syne", value: "'Syne', sans-serif" },
+  { label: "Orbitron", value: "'Orbitron', sans-serif" },
+  { label: "Russo One", value: "'Russo One', sans-serif" },
+  { label: "Righteous", value: "'Righteous', display" },
+  { label: "Bungee", value: "'Bungee', display" },
+  { label: "Monoton", value: "'Monoton', display" },
+  { label: "Abril Fatface", value: "'Abril Fatface', display" },
+  { label: "Playfair Display", value: "'Playfair Display', serif" },
+  { label: "Cinzel", value: "'Cinzel', serif" },
+  { label: "Old English", value: "'UnifrakturMaguntia', serif" },
+  { label: "Pirata One", value: "'Pirata One', display" },
+  { label: "Great Vibes", value: "'Great Vibes', cursive" },
+  { label: "Dancing Script", value: "'Dancing Script', cursive" },
+  { label: "Pacifico", value: "'Pacifico', cursive" },
+  { label: "Satisfy", value: "'Satisfy', cursive" },
+  { label: "Sacramento", value: "'Sacramento', cursive" },
+  { label: "Allura", value: "'Allura', cursive" },
+  { label: "Alex Brush", value: "'Alex Brush', cursive" },
+  { label: "Kaushan Script", value: "'Kaushan Script', cursive" },
+  { label: "Caveat", value: "'Caveat', cursive" },
+  { label: "Permanent Marker", value: "'Permanent Marker', cursive" },
+  { label: "Press Start 2P", value: "'Press Start 2P', monospace" },
 ];
 
+const INK_COLORS = [
+  "#FFFFFF",
+  "#0A0A0A",
+  "#FF5F1F",
+  "#DC2626",
+  "#EAB308",
+  "#22C55E",
+  "#1D4ED8",
+  "#38BDF8",
+  "#EC4899",
+  "#8B5CF6",
+];
+
+const SIZE_CHESTS: Record<string, string> = {
+  S: 'Chest 38" · Length 26"',
+  M: 'Chest 40" · Length 27"',
+  L: 'Chest 42" · Length 28"',
+};
+
+const FRONT_PRINT_FEE = 10;
+const BACK_PRINT_FEE = 8;
+
+/* ------------------------------------------------------------------ */
+/* Layer model                                                         */
+/* ------------------------------------------------------------------ */
+
+type ShapeKind = "square" | "circle" | "triangle";
+
+type BaseLayer = {
+  id: string;
+  side: GarmentSide;
+  /** Centre position as a percentage of the print area. */
+  x: number;
+  y: number;
+  /** Width as a percentage of the print area width. */
+  width: number;
+  rotation: number;
+  opacity: number;
+};
+
+type TextLayer = BaseLayer & {
+  type: "text";
+  text: string;
+  font: string;
+  color: string;
+  /** Font size expressed in px at a reference print-area height of 400px. */
+  fontSize: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  align: "left" | "center" | "right";
+  letterSpacing: number;
+};
+
+type ImageLayer = BaseLayer & {
+  type: "image";
+  src: string;
+  name: string;
+};
+
+type ShapeLayer = BaseLayer & {
+  type: "shape";
+  kind: ShapeKind;
+  color: string;
+};
+
+type Layer = TextLayer | ImageLayer | ShapeLayer;
+
+type Tool = "select" | "text" | "image" | "shapes";
+
+const REFERENCE_HEIGHT = 400;
+const uid = () => `L-${Date.now().toString(36)}-${Math.floor(Math.random() * 10000).toString(36)}`;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
+
 function StudioPage() {
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [view, setView] = useState<View>("front");
-  
-  // Redirect shop owners away from the customer Design Studio
-  useEffect(() => {
-    if (user?.role === "shop-owner") {
-      navigate({ to: "/dashboard" });
-    }
-  }, [user, navigate]);
-  
-  // Dynamic garment selection from catalog with category tabs
-  const [studioProducts, setStudioProducts] = useState<Product[]>(PRODUCTS);
-  const [selectedCategory, setSelectedCategory] = useState<Category>("T-Shirts");
-  const [selectedProduct, setSelectedProduct] = useState(PRODUCTS[0]);
-  const [shirt, setShirt] = useState(SHIRT_COLORS[0]);
 
-  // Load custom catalog blanks and filter on category change
-  useEffect(() => {
-    const prods = getProducts();
-    setStudioProducts(prods);
-    const firstInCat = prods.find((p) => p.category === selectedCategory);
-    if (firstInCat) {
-      setSelectedProduct(firstInCat);
-    }
-  }, [selectedCategory]);
+  const products = PRODUCTS;
+  const [productId, setProductId] = useState<string>(
+    () => products.find((p) => p.id === search.productId)?.id ?? products[0]!.id,
+  );
+  const product: Product = products.find((p) => p.id === productId) ?? products[0]!;
 
-  useEffect(() => {
-    const defaultColor = selectedProduct.colors[0];
-    setShirt({
-      name: COLOR_NAMES[defaultColor] || "Custom Color",
-      value: defaultColor,
-      text: getContrastColor(defaultColor)
-    });
-  }, [selectedProduct]);
+  const [color, setColor] = useState<string>(() =>
+    search.color && ALL_APPAREL_COLORS.includes(search.color) ? search.color : "#FFFFFF",
+  );
+  const [targetGroup, setTargetGroup] = useState<TargetGroup>("Men");
+  const [size, setSize] = useState<string>("M");
+  const [side, setSide] = useState<GarmentSide>("front");
+  const [zoom, setZoom] = useState(100);
+  const [tool, setTool] = useState<Tool>("select");
+  const [quantity, setQuantity] = useState(1);
 
-  // Load reference designs dynamically
-  const [designs, setDesigns] = useState<ReferenceDesign[]>([]);
+  const [layers, setLayers] = useState<Layer[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [past, setPast] = useState<Layer[][]>([]);
+  const [future, setFuture] = useState<Layer[][]>([]);
+
+  const [cart, setCart] = useState<CartItem[]>([]);
+
+  const printRef = useRef<HTMLDivElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const hydratedRef = useRef(false);
+
+  const colorName = COLOR_NAMES[color] ?? color;
+  const ink = contrastInk(color);
+  const fit = fitScaleFor(targetGroup);
+
+  const sideLayers = useMemo(() => layers.filter((l) => l.side === side), [layers, side]);
+  const selected = useMemo(
+    () => layers.find((l) => l.id === selectedId && l.side === side) ?? null,
+    [layers, selectedId, side],
+  );
+
+  /* ---------------- cart sync ---------------- */
   useEffect(() => {
-    setDesigns(getDesigns());
+    let active = true;
+    getCart()
+      .then((items) => {
+        if (active) setCart(items);
+      })
+      .catch((error) => console.error("Failed to load cart", error));
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const [text, setText] = useState("YOUR TEXT");
-  const [font, setFont] = useState(FONTS[0].value);
-  const [fontSize, setFontSize] = useState(40);
-  const [textColor, setTextColor] = useState("#0A0A0A");
-
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageSize, setImageSize] = useState(180);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  // Order modal states
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [shippingName, setShippingName] = useState("");
-  const [shippingAddress, setShippingAddress] = useState("");
-  const [shippingPhone, setShippingPhone] = useState("");
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
-
-  // Real-Time Price Calculation
-  const basePrice = selectedProduct.price;
-  const hasCustomText = text.trim() && text !== "YOUR TEXT" && text !== "";
-  const hasCustomGraphic = !!imageUrl;
-  const textFee = hasCustomText ? 2.0 : 0.0;
-  const graphicFee = hasCustomGraphic ? 3.5 : 0.0;
-  const totalPrice = basePrice + textFee + graphicFee;
-
-  // Load shared design states or pending design on mount
+  /* ---------------- deep link hydration ---------------- */
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (!search.text) return;
+    const parsedSize = Number(search.fontSize);
+    setLayers([
+      {
+        id: uid(),
+        type: "text",
+        side: "front",
+        x: 50,
+        y: 42,
+        width: 84,
+        rotation: 0,
+        opacity: 1,
+        text: search.text,
+        font: search.font ?? FONTS[0]!.value,
+        color: search.textColor ?? "#0A0A0A",
+        fontSize: Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 40,
+        bold: true,
+        italic: false,
+        underline: false,
+        align: "center",
+        letterSpacing: 0,
+      },
+    ]);
+  }, [search.text, search.font, search.textColor, search.fontSize]);
 
-    // Check if there is a pending design saved before login redirection
-    const pendingData = localStorage.getItem("customon:pending-design");
-    if (pendingData) {
-      try {
-        const design = JSON.parse(pendingData);
-        if (design.productId) {
-          const allProds = getProducts();
-          const match = allProds.find((p) => p.id === design.productId);
-          if (match) {
-            setSelectedProduct(match);
-            setSelectedCategory(match.category);
-          }
-        }
-        if (design.shirtColor && design.shirtColorName) {
-          setShirt({
-            name: design.shirtColorName,
-            value: design.shirtColor,
-            text: getContrastColor(design.shirtColor),
-          });
-        }
-        if (design.text !== undefined) setText(design.text);
-        if (design.font) setFont(design.font);
-        if (design.textColor) setTextColor(design.textColor);
-        if (design.fontSize) setFontSize(Number(design.fontSize));
-        if (design.imageUrl !== undefined) setImageUrl(design.imageUrl);
-        if (design.imageSize !== undefined) setImageSize(Number(design.imageSize));
-
-        // Clear the pending design so it doesn't reload next time
-        localStorage.removeItem("customon:pending-design");
-        return;
-      } catch (e) {
-        console.error("Failed to restore pending design", e);
-      }
-    }
-
-    const params = new URLSearchParams(window.location.search);
-    const prodId = params.get("productId");
-    const colorVal = params.get("color");
-    const colorNm = params.get("colorName");
-    const txtVal = params.get("text");
-    const fontVal = params.get("font");
-    const txtCol = params.get("textColor");
-    const txtSz = params.get("fontSize");
-    const graphicNm = params.get("graphic");
-
-    if (prodId) {
-      const allProds = getProducts();
-      const match = allProds.find((p) => p.id === prodId);
-      if (match) {
-        setSelectedProduct(match);
-        setSelectedCategory(match.category);
-      }
-    }
-    if (colorVal && colorNm) {
-      setShirt({
-        name: colorNm,
-        value: colorVal,
-        text: getContrastColor(colorVal),
-      });
-    }
-    if (txtVal !== null) setText(txtVal);
-    if (fontVal) setFont(fontVal);
-    if (txtCol) setTextColor(txtCol);
-    if (txtSz) setFontSize(Number(txtSz));
-
-    if (graphicNm) {
-      // Find within reference templates or owner uploads
-      const allTemplates = [...REFERENCE_DESIGNS, ...getDesigns()];
-      const matchG = allTemplates.find((d) => d.name === graphicNm);
-      if (matchG) setImageUrl(matchG.svg);
-    }
-  }, [designs]);
-
-  // Share Design Link
-  const [shareSuccess, setShareSuccess] = useState(false);
-  const handleShareDesign = () => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams({
-      productId: selectedProduct.id,
-      color: shirt.value,
-      colorName: shirt.name,
-      text: text,
-      font: font,
-      textColor: textColor,
-      fontSize: fontSize.toString(),
+  /* ---------------- history ---------------- */
+  const commit = useCallback((updater: (current: Layer[]) => Layer[]) => {
+    setLayers((current) => {
+      const next = updater(current);
+      if (next === current) return current;
+      setPast((p) => [...p.slice(-49), current]);
+      setFuture([]);
+      return next;
     });
-    const matchingTemplate = [...REFERENCE_DESIGNS, ...designs].find((d) => d.svg === imageUrl);
-    if (matchingTemplate) {
-      params.append("graphic", matchingTemplate.name);
-    }
-    const shareUrl = `${window.location.origin}/studio?${params.toString()}`;
+  }, []);
 
-    const triggerSuccess = () => {
-      setShareSuccess(true);
-      setTimeout(() => setShareSuccess(false), 3000);
+  const undo = useCallback(() => {
+    setPast((p) => {
+      if (p.length === 0) return p;
+      const previous = p[p.length - 1]!;
+      setLayers((current) => {
+        setFuture((f) => [current, ...f].slice(0, 50));
+        return previous;
+      });
+      return p.slice(0, -1);
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setFuture((f) => {
+      if (f.length === 0) return f;
+      const next = f[0]!;
+      setLayers((current) => {
+        setPast((p) => [...p, current]);
+        return next;
+      });
+      return f.slice(1);
+    });
+  }, []);
+
+  const updateSelected = useCallback(
+    (patch: Partial<TextLayer> & Partial<ImageLayer> & Partial<ShapeLayer>) => {
+      if (!selectedId) return;
+      commit((current) =>
+        current.map((l) => (l.id === selectedId ? ({ ...l, ...patch } as Layer) : l)),
+      );
+    },
+    [commit, selectedId],
+  );
+
+  const removeLayer = useCallback(
+    (id: string) => {
+      commit((current) => current.filter((l) => l.id !== id));
+      setSelectedId((cur) => (cur === id ? null : cur));
+    },
+    [commit],
+  );
+
+  const duplicateLayer = useCallback(
+    (id: string) => {
+      commit((current) => {
+        const source = current.find((l) => l.id === id);
+        if (!source) return current;
+        const copy = {
+          ...source,
+          id: uid(),
+          x: clamp(source.x + 6, 0, 100),
+          y: clamp(source.y + 6, 0, 100),
+        };
+        return [...current, copy as Layer];
+      });
+    },
+    [commit],
+  );
+
+  /* ---------------- adders ---------------- */
+  const addText = useCallback(() => {
+    const layer: TextLayer = {
+      id: uid(),
+      type: "text",
+      side,
+      x: 50,
+      y: 40,
+      width: 86,
+      rotation: 0,
+      opacity: 1,
+      text: "YOUR TEXT",
+      font: FONTS[0]!.value,
+      color: ink,
+      fontSize: 44,
+      bold: true,
+      italic: false,
+      underline: false,
+      align: "center",
+      letterSpacing: 0,
     };
+    commit((current) => [...current, layer]);
+    setSelectedId(layer.id);
+    setTool("text");
+  }, [commit, ink, side]);
 
-    // Fallback copy utility for HTTP / non-localhost environments
-    const fallbackCopy = (val: string) => {
-      try {
-        const textArea = document.createElement("textarea");
-        val = val.trim();
-        textArea.value = val;
-        textArea.style.position = "fixed";
-        textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand("copy");
-        document.body.removeChild(textArea);
-        if (successful) {
-          triggerSuccess();
-        } else {
-          // If all options fail, display a fallback alert box letting users manually copy
-          window.prompt("Copy this design link to share:", val);
-        }
-      } catch (err) {
-        console.error("Clipboard fallback failed", err);
-        window.prompt("Copy this design link to share:", val);
-      }
-    };
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl)
-        .then(() => triggerSuccess())
-        .catch((err) => {
-          console.warn("navigator.clipboard failed, using fallback copy", err);
-          fallbackCopy(shareUrl);
-        });
-    } else {
-      fallbackCopy(shareUrl);
-    }
-  };
-
-  // Save Design
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const handleSaveDesign = () => {
-    if (!user) {
-      alert("Please log in as a customer to save your design.");
-      
-      const payload = {
-        productId: selectedProduct.id,
-        shirtColor: shirt.value,
-        shirtColorName: shirt.name,
-        text,
-        font,
-        fontSize,
-        textColor,
-        imageUrl,
-        imageSize,
+  const addShape = useCallback(
+    (kind: ShapeKind) => {
+      const layer: ShapeLayer = {
+        id: uid(),
+        type: "shape",
+        side,
+        x: 50,
+        y: 50,
+        width: 40,
+        rotation: 0,
+        opacity: 1,
+        kind,
+        color: "#FF5F1F",
       };
-      
-      try {
-        localStorage.setItem("customon:pending-design", JSON.stringify(payload));
-      } catch (e) {
-        console.error("Failed to save pending design state", e);
+      commit((current) => [...current, layer]);
+      setSelectedId(layer.id);
+    },
+    [commit, side],
+  );
+
+  const handleFiles = useCallback(
+    (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload a PNG, JPG or SVG image.");
+        return;
       }
-
-      navigate({ to: "/login" });
-      return;
-    }
-
-    const designName = prompt("Enter a name for your design:", `My Custom ${selectedProduct.name}`);
-    if (designName === null) return; // user cancelled prompt
-    
-    const finalName = designName.trim() || `My Custom ${selectedProduct.name}`;
-
-    saveDesignToWishlist({
-      productId: selectedProduct.id,
-      productName: finalName,
-      shirtColor: shirt.value,
-      shirtColorName: shirt.name,
-      customText: text,
-      customTextColor: textColor,
-      customTextFont: font,
-      customTextSize: fontSize,
-      customImage: imageUrl,
-      price: totalPrice,
-    }, user.username);
-
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-  };
-
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      setImageUrl(dataUrl);
-
-      // Automatically generate and download a separate PDF containing only the high-resolution photo
-      try {
-        const { jsPDF } = await import("jspdf");
-        const img = new Image();
-        img.onload = () => {
-          const doc = new jsPDF({
-            orientation: img.width > img.height ? "landscape" : "portrait",
-            unit: "mm",
-            format: "a4"
-          });
-          
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const pageHeight = doc.internal.pageSize.getHeight();
-          
-          const margin = 10;
-          const maxWidth = pageWidth - margin * 2;
-          const maxHeight = pageHeight - margin * 2;
-          
-          let imgWidth = img.width;
-          let imgHeight = img.height;
-          const ratio = imgWidth / imgHeight;
-          
-          if (imgWidth > maxWidth) {
-            imgWidth = maxWidth;
-            imgHeight = imgWidth / ratio;
-          }
-          if (imgHeight > maxHeight) {
-            imgHeight = maxHeight;
-            imgWidth = imgHeight * ratio;
-          }
-          
-          const x = (pageWidth - imgWidth) / 2;
-          const y = (pageHeight - imgHeight) / 2;
-          
-          doc.addImage(dataUrl, "PNG", x, y, imgWidth, imgHeight);
-          doc.save(`uploaded-graphic-${Date.now()}.pdf`);
-        };
-        img.src = dataUrl;
-      } catch (err) {
-        console.error("Failed to generate uploaded photo PDF", err);
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image is larger than 5 MB. Please upload a smaller file.");
+        return;
       }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const reset = () => {
-    setText("YOUR TEXT");
-    setFont(FONTS[0].value);
-    setFontSize(40);
-    setTextColor("#0A0A0A");
-    setImageUrl(null);
-    setImageSize(180);
-  };
-
-  const downloadAsPng = (dataUrl: string, fileName: string) => {
-    if (!dataUrl) return;
-    
-    // If it's already a PNG data URL, we can download it directly
-    if (dataUrl.startsWith("data:image/png")) {
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = fileName;
-      link.click();
-      return;
-    }
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth || 800;
-      canvas.height = img.naturalHeight || 800;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        try {
-          const pngUrl = canvas.toDataURL("image/png");
-          const link = document.createElement("a");
-          link.href = pngUrl;
-          link.download = fileName;
-          link.click();
-        } catch (e) {
-          console.error("Canvas export failed", e);
-          const link = document.createElement("a");
-          link.href = dataUrl;
-          link.download = fileName;
-          link.click();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = typeof reader.result === "string" ? reader.result : null;
+        if (!src) {
+          toast.error("That file could not be read.");
+          return;
         }
-      }
+        const layer: ImageLayer = {
+          id: uid(),
+          type: "image",
+          side,
+          x: 50,
+          y: 45,
+          width: 60,
+          rotation: 0,
+          opacity: 1,
+          src,
+          name: file.name,
+        };
+        commit((current) => [...current, layer]);
+        setSelectedId(layer.id);
+        toast.success(`${file.name} added to the ${side} print area.`);
+      };
+      reader.onerror = () => toast.error("That file could not be read.");
+      reader.readAsDataURL(file);
+    },
+    [commit, side],
+  );
+
+  /* ---------------- drag / resize / rotate ---------------- */
+  const interaction = useRef<null | {
+    mode: "move" | "resize" | "rotate";
+    id: string;
+    startX: number;
+    startY: number;
+    origin: Layer;
+    rect: DOMRect;
+  }>(null);
+
+  const beginInteraction = (
+    event: ReactPointerEvent,
+    mode: "move" | "resize" | "rotate",
+    layer: Layer,
+  ) => {
+    event.stopPropagation();
+    event.preventDefault();
+    const rect = printRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setSelectedId(layer.id);
+    setPast((p) => [...p.slice(-49), layers]);
+    setFuture([]);
+    interaction.current = {
+      mode,
+      id: layer.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: layer,
+      rect,
     };
-    img.src = dataUrl;
+    (event.target as Element).setPointerCapture?.(event.pointerId);
   };
 
-  const generateOrderPdf = async (orderId: string, orderDetails: any) => {
-    try {
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
+  useEffect(() => {
+    const onMove = (event: PointerEvent) => {
+      const state = interaction.current;
+      if (!state) return;
+      const { rect, origin, mode } = state;
+      const dx = event.clientX - state.startX;
+      const dy = event.clientY - state.startY;
 
-      // Title header
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.setTextColor(10, 10, 10);
-      doc.text("CUSTOM ON - CUSTOM APPAREL ORDER", 15, 20);
-
-      // Divider line
-      doc.setDrawColor(255, 95, 31); // Brand Orange
-      doc.setLineWidth(1);
-      doc.line(15, 25, 195, 25);
-
-      // Order Summary section
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(10, 10, 10);
-      doc.text("Order Specifications", 15, 35);
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      
-      const summaryItems = [
-        ["Order ID:", `#${orderId}`],
-        ["Date:", new Date().toLocaleDateString()],
-        ["Customer Name:", orderDetails.customerName],
-        ["Product Blank:", orderDetails.productName],
-        ["Garment Color:", orderDetails.shirtColorName],
-        ["Custom Text:", orderDetails.customText !== "YOUR TEXT" && orderDetails.customText ? orderDetails.customText : "None"],
-        ["Total Price:", `$${orderDetails.totalPrice.toFixed(2)}`]
-      ];
-
-      let currentY = 43;
-      summaryItems.forEach(([label, val]) => {
-        doc.setFont("helvetica", "bold");
-        doc.text(label, 15, currentY);
-        doc.setFont("helvetica", "normal");
-        doc.text(val, 55, currentY);
-        currentY += 7;
-      });
-
-      // Shipping details section
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Shipping Information", 15, 100);
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      
-      doc.setFont("helvetica", "bold");
-      doc.text("Receiver Name:", 15, 108);
-      doc.setFont("helvetica", "normal");
-      doc.text(orderDetails.shippingName, 55, 108);
-
-      doc.setFont("helvetica", "bold");
-      doc.text("Contact Phone:", 15, 115);
-      doc.setFont("helvetica", "normal");
-      doc.text(orderDetails.shippingPhone, 55, 115);
-
-      doc.setFont("helvetica", "bold");
-      doc.text("Address details:", 15, 122);
-      doc.setFont("helvetica", "normal");
-      
-      // Split shipping address text to wrap nicely
-      const splitAddress = doc.splitTextToSize(orderDetails.shippingAddress, 130);
-      doc.text(splitAddress, 55, 122);
-
-      // Check if custom image exists to append it
-      if (orderDetails.customImage) {
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Custom Graphic Design", 15, 150);
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text("Below is the custom graphic image applied to this apparel design:", 15, 157);
-
-        const getPngDataUrl = async (url: string): Promise<string> => {
-          if (url.startsWith("data:image/png;base64,")) {
-            return url;
-          }
-          return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              canvas.width = img.naturalWidth || 800;
-              canvas.height = img.naturalHeight || 800;
-              const ctx = canvas.getContext("2d");
-              if (ctx) {
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                try {
-                  resolve(canvas.toDataURL("image/png"));
-                } catch (e) {
-                  reject(e);
-                }
-              } else {
-                reject(new Error("Context failed"));
-              }
+      setLayers((current) =>
+        current.map((l) => {
+          if (l.id !== state.id) return l;
+          if (mode === "move") {
+            return {
+              ...l,
+              x: clamp(origin.x + (dx / rect.width) * 100, 0, 100),
+              y: clamp(origin.y + (dy / rect.height) * 100, 0, 100),
             };
-            img.onerror = () => reject(new Error("Image failed"));
-            img.src = url;
-          });
-        };
+          }
+          if (mode === "resize") {
+            const scale = 1 + (dx / rect.width) * 2.2;
+            const width = clamp(origin.width * scale, 6, 200);
+            if (origin.type === "text") {
+              return {
+                ...(l as TextLayer),
+                width,
+                fontSize: clamp((origin as TextLayer).fontSize * (width / origin.width), 8, 220),
+              };
+            }
+            return { ...l, width };
+          }
+          const cx = rect.left + (origin.x / 100) * rect.width;
+          const cy = rect.top + (origin.y / 100) * rect.height;
+          const angle = (Math.atan2(event.clientY - cy, event.clientX - cx) * 180) / Math.PI + 90;
+          return { ...l, rotation: Math.round(angle) };
+        }),
+      );
+    };
+    const onUp = () => {
+      interaction.current = null;
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
 
-        try {
-          const pngDataUrl = await getPngDataUrl(orderDetails.customImage);
-          // Insert image centered on page, scaled appropriately
-          doc.addImage(pngDataUrl, "PNG", 15, 162, 90, 90);
-        } catch (e) {
-          console.error("Failed to render custom image inside PDF", e);
-          doc.text("Error rendering custom design graphic.", 15, 165);
-        }
+  /* ---------------- keyboard ---------------- */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+        return;
       }
+      if (!selectedId) return;
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        removeLayer(selectedId);
+        return;
+      }
+      const step = event.shiftKey ? 5 : 1;
+      const nudge: Record<string, [number, number]> = {
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+      };
+      const delta = nudge[event.key];
+      if (delta) {
+        event.preventDefault();
+        commit((current) =>
+          current.map((l) =>
+            l.id === selectedId
+              ? { ...l, x: clamp(l.x + delta[0], 0, 100), y: clamp(l.y + delta[1], 0, 100) }
+              : l,
+          ),
+        );
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [commit, redo, removeLayer, selectedId, undo]);
 
-      doc.save(`custom-order-${orderId}.pdf`);
-      return true;
-    } catch (err) {
-      console.error("PDF generation failed", err);
-      return false;
-    }
+  /* ---------------- pricing ---------------- */
+  const hasFront = layers.some((l) => l.side === "front");
+  const hasBack = layers.some((l) => l.side === "back");
+  const customization = (hasFront ? FRONT_PRINT_FEE : 0) + (hasBack ? BACK_PRINT_FEE : 0);
+  const unitPrice = product.price + customization;
+  const total = unitPrice * quantity;
+
+  /* ---------------- actions ---------------- */
+  const designSummary = () => {
+    const bits: string[] = [];
+    const texts = layers.filter((l): l is TextLayer => l.type === "text");
+    if (texts.length > 0) bits.push(texts.map((t) => `"${t.text}"`).join(", "));
+    const images = layers.filter((l) => l.type === "image").length;
+    if (images > 0) bits.push(`${images} graphic${images > 1 ? "s" : ""}`);
+    const shapes = layers.filter((l) => l.type === "shape").length;
+    if (shapes > 0) bits.push(`${shapes} shape${shapes > 1 ? "s" : ""}`);
+    return bits.length > 0 ? bits.join(" · ") : "Blank garment";
   };
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const firstText = layers.find((l): l is TextLayer => l.type === "text");
+  const firstImage = layers.find((l): l is ImageLayer => l.type === "image");
+
+  const handleAddToCart = async () => {
     if (!user) {
-      alert("Please log in as a customer to place an order.");
+      toast.error("Please sign in before adding items to your cart.");
       navigate({ to: "/login" });
       return;
     }
-
-    const orderData = {
-      customerName: user.username,
-      shippingName: shippingName.trim(),
-      shippingAddress: shippingAddress.trim(),
-      shippingPhone: shippingPhone.trim(),
-      productName: selectedProduct.name,
-      shirtColor: shirt.value,
-      shirtColorName: shirt.name,
-      customText: text,
-      customTextColor: textColor,
-      customTextFont: font,
-      customTextSize: fontSize,
-      customImage: imageUrl,
-      totalPrice: totalPrice,
-    };
-
-    const order = placeOrder(orderData);
-
-    let message = `Hello! I just confirmed a custom order on Custom On.
-
-Order ID: #${order.id}
-Product: ${selectedProduct.name}
-Color: ${shirt.name}
-Text: ${text !== "YOUR TEXT" ? text : "None"}
-Estimated Price: $${totalPrice.toFixed(2)}`;
-
-    // If customized using an image, generate a PDF and alert the user
-    if (imageUrl) {
-      alert("Custom graphic detected! Generating and downloading a PDF document of your design. Please send this PDF to the owner in the WhatsApp chat next.");
-      await generateOrderPdf(order.id, orderData);
-      message += `\n\nI have generated a PDF of my custom photo/design order. I am sending the PDF in this chat.`;
-    } else {
-      // Otherwise, construct design link mockup
-      const params = new URLSearchParams({
-        productId: selectedProduct.id,
-        color: shirt.value,
-        colorName: shirt.name,
-        text: text,
-        font: font,
-        textColor: textColor,
-        fontSize: fontSize.toString(),
-      });
-      
-      const matchingTemplate = [...REFERENCE_DESIGNS, ...designs].find((d) => d.svg === imageUrl);
-      if (matchingTemplate) {
-        params.append("graphic", matchingTemplate.name);
-      }
-      
-      const designLink = `${window.location.origin}/studio?${params.toString()}`;
-      message += `\n\nYou can view my design mockup here:\n${designLink}`;
-    }
-
-    const waUrl = `https://wa.me/917090637746?text=${encodeURIComponent(message)}`;
-
-    setOrderSuccess(order.id);
-    setShowOrderModal(false);
-    setShippingName("");
-    setShippingAddress("");
-    setShippingPhone("");
-
-    // Open WhatsApp directly
-    window.open(waUrl, "_blank");
+    await addToCart({
+      productId: product.id,
+      productName: product.name,
+      color,
+      colorName,
+      size,
+      targetGroup,
+      quantity,
+      unitPrice,
+      frontPreview: layers.some((l) => l.side === "front" && l.type === "image")
+        ? (layers.find((l) => l.side === "front" && l.type === "image") as ImageLayer).src
+        : null,
+      backPreview: layers.some((l) => l.side === "back" && l.type === "image")
+        ? (layers.find((l) => l.side === "back" && l.type === "image") as ImageLayer).src
+        : null,
+      summary: designSummary(),
+    });
+    toast.success(`${product.name} (${colorName}, ${size}) added to cart.`);
+    navigate({ to: "/cart" });
   };
 
+  const handleSaveDesign = async () => {
+    if (!user) {
+      toast.error("Please sign in before saving a design.");
+      navigate({ to: "/login" });
+      return;
+    }
+    await saveDesignToWishlist(
+      {
+        productId: product.id,
+        productName: product.name,
+        shirtColor: color,
+        shirtColorName: colorName,
+        customText: firstText?.text ?? "",
+        customTextColor: firstText?.color ?? ink,
+        customTextFont: firstText?.font ?? FONTS[0]!.value,
+        customTextSize: Math.round(firstText?.fontSize ?? 40),
+        customImage: firstImage?.src ?? null,
+        price: unitPrice,
+      },
+      user?.username,
+    );
+    toast.success("Design saved to your account.");
+  };
+
+  const [checkout, setCheckout] = useState({ name: "", address: "", phone: "" });
+
+  const handlePlaceOrder = async () => {
+    const items = await getCart();
+    if (items.length === 0) {
+      toast.error("Your cart is empty.");
+      return;
+    }
+    if (!checkout.name.trim() || !checkout.address.trim() || !checkout.phone.trim()) {
+      toast.error("Please add a shipping name, address and phone number.");
+      return;
+    }
+    for (const item of items) {
+      placeOrder({
+        customerName: user?.name ?? user?.username ?? checkout.name.trim(),
+        shippingName: checkout.name.trim(),
+        shippingAddress: checkout.address.trim(),
+        shippingPhone: checkout.phone.trim(),
+        productName: item.productName,
+        shirtColor: item.color,
+        shirtColorName: item.colorName,
+        customText: item.summary,
+        customTextColor: firstText?.color ?? "#0A0A0A",
+        customTextFont: firstText?.font ?? FONTS[0]!.value,
+        customTextSize: Math.round(firstText?.fontSize ?? 40),
+        customImage: item.frontPreview ?? item.backPreview,
+        totalPrice: item.unitPrice * item.quantity,
+        size: item.size,
+        targetGroup: item.targetGroup,
+      });
+    }
+    await clearCart();
+    toast.success("Order placed. Track it from your dashboard.");
+    navigate({ to: "/dashboard", search: { tab: "orders" } });
+  };
+
+  /* ---------------- render ---------------- */
   return (
-    <PageShell>
-      <section className="border-b border-brand-black/5 px-6 py-10">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-4">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-brand-orange">
-              Design Studio
-            </span>
-            <h1 className="mt-2 font-display text-4xl font-extrabold uppercase tracking-tight md:text-5xl">
-              Build your shirt
-            </h1>
+    <div className="min-h-screen bg-[#0b0b0d] text-zinc-100">
+      <StudioHeader
+        cartQty={cartCount(cart)}
+        onOpenCart={() => navigate({ to: "/cart" })}
+        onSave={handleSaveDesign}
+      />
+
+      <div className="mx-auto grid max-w-[1600px] gap-4 p-3 lg:grid-cols-[260px_minmax(0,1fr)_320px] lg:p-5">
+        {/* 1. Product chooser */}
+        <Panel number={1} title="Choose product">
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible">
+            {products.map((p) => {
+              const active = p.id === product.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setProductId(p.id)}
+                  className={`flex w-52 shrink-0 items-center gap-3 rounded-xl border p-2 text-left transition lg:w-full ${
+                    active
+                      ? "border-[#FF5F1F] bg-[#FF5F1F]/10"
+                      : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                  }`}
+                >
+                  <span className="grid h-14 w-12 shrink-0 place-items-center rounded-lg bg-white/5">
+                    <GarmentImage
+                      product={p}
+                      side="front"
+                      size={size}
+                      color="#e9e9ea"
+                      className="h-12 w-11"
+                    />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-semibold leading-tight">
+                      {p.name}
+                    </span>
+                    <span className="text-xs font-bold text-[#FF5F1F]">${p.price}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="flex flex-wrap gap-2">
+        </Panel>
+
+        {/* Canvas */}
+        <section className="order-first flex flex-col rounded-2xl border border-white/10 bg-[#131316] lg:order-none">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 p-3 sm:flex sm:justify-between">
+            <div className="inline-flex rounded-lg bg-white/5 p-1">
+              {(["front", "back"] as GarmentSide[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSide(s)}
+                  className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
+                    side === s ? "bg-[#FF5F1F] text-white" : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span className="hidden sm:inline">Zoom</span>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => clamp(z - 10, 60, 180))}
+                className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+              >
+                −
+              </button>
+              <span className="w-12 text-center font-semibold text-zinc-200">{zoom}%</span>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => clamp(z + 10, 60, 180))}
+                className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+            {/* Tool rail */}
+            <div className="absolute left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-white/10 bg-[#1b1b1f]/95 p-1.5 backdrop-blur">
+              <ToolButton
+                icon={MousePointer2}
+                label="Select"
+                active={tool === "select"}
+                onClick={() => setTool("select")}
+              />
+              <ToolButton icon={TypeIcon} label="Text" active={tool === "text"} onClick={addText} />
+              <ToolButton
+                icon={Upload}
+                label="Upload"
+                active={tool === "image"}
+                onClick={() => fileRef.current?.click()}
+              />
+              <ToolButton
+                icon={Shapes}
+                label="Shapes"
+                active={tool === "shapes"}
+                onClick={() => setTool(tool === "shapes" ? "select" : "shapes")}
+              />
+              {tool === "shapes" && (
+                <div className="flex flex-col gap-1 border-t border-white/10 pt-1">
+                  <ToolButton icon={Square} label="Square" onClick={() => addShape("square")} />
+                  <ToolButton icon={Circle} label="Circle" onClick={() => addShape("circle")} />
+                  <ToolButton
+                    icon={Triangle}
+                    label="Triangle"
+                    onClick={() => addShape("triangle")}
+                  />
+                </div>
+              )}
+              <div className="mt-1 flex flex-col gap-1 border-t border-white/10 pt-1">
+                <ToolButton icon={Undo2} label="Undo" onClick={undo} disabled={past.length === 0} />
+                <ToolButton
+                  icon={Redo2}
+                  label="Redo"
+                  onClick={redo}
+                  disabled={future.length === 0}
+                />
+              </div>
+            </div>
+
+            <div
+              className="relative"
+              style={{
+                width: "100%",
+                maxWidth: 460,
+                transform: `scale(${fit.scaleX * (zoom / 100)}, ${fit.scaleY * (zoom / 100)})`,
+                transformOrigin: "center center",
+              }}
+              onPointerDown={() => setSelectedId(null)}
+            >
+              <div className="relative aspect-[4/5] w-full">
+                <GarmentImage
+                  product={product}
+                  side={side}
+                  size={size}
+                  color={color}
+                  className="absolute inset-0 h-full w-full"
+                />
+
+                <div
+                  ref={printRef}
+                  className="absolute inset-0 overflow-visible rounded-[4px] outline-1 outline-dashed outline-white/10"
+                  aria-label="Full garment customization canvas"
+                >
+                  {sideLayers.map((layer) => (
+                    <LayerView
+                      key={layer.id}
+                      layer={layer}
+                      selected={layer.id === selectedId}
+                      printHeight={
+                        printRef.current?.getBoundingClientRect().height ?? REFERENCE_HEIGHT
+                      }
+                      onPointerDown={(e) => beginInteraction(e, "move", layer)}
+                      onResize={(e) => beginInteraction(e, "resize", layer)}
+                      onRotate={(e) => beginInteraction(e, "rotate", layer)}
+                      onDelete={() => removeLayer(layer.id)}
+                      onDuplicate={() => duplicateLayer(layer.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                handleFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 p-3 text-xs">
+            <span className="mr-2 text-zinc-500">
+              {selected ? "Selected layer" : "Select a layer to edit"}
+            </span>
+            <CanvasAction
+              icon={Copy}
+              label="Duplicate"
+              disabled={!selected}
+              onClick={() => selected && duplicateLayer(selected.id)}
+            />
+            <CanvasAction
+              icon={RotateCw}
+              label="Reset angle"
+              disabled={!selected}
+              onClick={() => updateSelected({ rotation: 0 })}
+            />
+            <CanvasAction
+              icon={Layers}
+              label="Bring to front"
+              disabled={!selected}
+              onClick={() =>
+                selected &&
+                commit((current) => [...current.filter((l) => l.id !== selected.id), selected])
+              }
+            />
+            <CanvasAction
+              icon={Trash2}
+              label="Delete"
+              danger
+              disabled={!selected}
+              onClick={() => selected && removeLayer(selected.id)}
+            />
+          </div>
+        </section>
+
+        {/* Right column */}
+        <div className="space-y-4">
+          <Panel number={2} title="Garment colour">
+            <div className="grid grid-cols-5 gap-2.5">
+              {ALL_APPAREL_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  title={COLOR_NAMES[c] ?? c}
+                  aria-label={COLOR_NAMES[c] ?? c}
+                  onClick={() => setColor(c)}
+                  className={`aspect-square rounded-full border-2 transition ${
+                    color === c
+                      ? "border-[#FF5F1F] ring-2 ring-[#FF5F1F]/30"
+                      : "border-white/15 hover:border-white/40"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-zinc-400">{colorName}</p>
+          </Panel>
+
+          <Panel number={3} title="Target group & size">
+            <div className="grid grid-cols-3 rounded-lg bg-white/5 p-1">
+              <div className="flex-1 rounded-lg bg-[#FF5F1F] px-3 py-2 text-center text-xs font-bold text-white">
+                Men
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+              Men sizing
+            </p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {STANDARD_APPAREL_SIZES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSize(s)}
+                  className={`rounded-lg border px-2 py-2 text-center transition ${
+                    size === s
+                      ? "border-[#FF5F1F] bg-[#FF5F1F] text-white"
+                      : "border-white/10 bg-white/[0.03] hover:border-white/30"
+                  }`}
+                >
+                  <span className="block text-sm font-bold">{s}</span>
+                  <span className="block text-[10px] opacity-70">{SIZE_CHESTS[s] ?? ""}</span>
+                </button>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel number={4} title="Side">
+            <div className="grid grid-cols-2 gap-2">
+              {(["front", "back"] as GarmentSide[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSide(s)}
+                  className={`rounded-lg py-2 text-xs font-bold uppercase tracking-wider transition ${
+                    side === s
+                      ? "bg-[#FF5F1F] text-white"
+                      : "bg-white/5 text-zinc-300 hover:bg-white/10"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-zinc-500">
+              {layers.filter((l) => l.side === "front").length} front ·{" "}
+              {layers.filter((l) => l.side === "back").length} back element(s)
+            </p>
+          </Panel>
+
+          <Panel number={7} title="Price summary">
+            <Row label="Base price" value={`$${product.price.toFixed(2)}`} />
+            <Row label={`Colour — ${colorName}`} value="$0.00" />
+            <Row
+              label="Front print"
+              value={hasFront ? `$${FRONT_PRINT_FEE.toFixed(2)}` : "$0.00"}
+            />
+            <Row label="Back print" value={hasBack ? `$${BACK_PRINT_FEE.toFixed(2)}` : "$0.00"} />
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Qty</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => clamp(q - 1, 1, 999))}
+                  className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+                >
+                  −
+                </button>
+                <span className="w-8 text-center font-semibold">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => clamp(q + 1, 1, 999))}
+                  className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+              <span className="text-sm font-bold uppercase tracking-widest">Total</span>
+              <span className="text-xl font-extrabold text-[#FF5F1F]">${total.toFixed(2)}</span>
+            </div>
             <button
               type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-2 border border-brand-black/10 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-brand-black/60 hover:text-brand-black hover:border-brand-black"
+              onClick={handleAddToCart}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#FF5F1F] py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-[#ff7a45]"
             >
-              <RotateCcw className="h-4 w-4" /> Reset
-            </button>
-            <button
-              type="button"
-              onClick={handleShareDesign}
-              className="inline-flex items-center gap-2 border border-brand-black/10 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-brand-black hover:border-brand-black hover:bg-brand-gray"
-            >
-              <Share2 className="h-4 w-4" /> {shareSuccess ? "Link Copied!" : "Share"}
+              <ShoppingCart className="h-4 w-4" /> Add to cart
             </button>
             <button
               type="button"
               onClick={handleSaveDesign}
-              className="inline-flex items-center gap-2 border border-brand-black/10 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-brand-black hover:border-brand-black hover:bg-brand-gray"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-300 transition hover:border-white/40"
             >
-              <Save className="h-4 w-4 text-brand-orange" /> {saveSuccess ? "Saved!" : "Save Design"}
+              <Heart className="h-3.5 w-3.5" /> Save design
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!user) {
-                  alert("Please log in as a customer to order your custom apparel.");
-                  navigate({ to: "/login" });
-                  return;
-                }
-                setShowOrderModal(true);
-              }}
-              className="inline-flex items-center gap-2 bg-brand-orange px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-brand transition hover:-translate-y-0.5"
-            >
-              <ShoppingBag className="h-4 w-4" /> Order - ${totalPrice.toFixed(2)}
-            </button>
-          </div>
+          </Panel>
         </div>
-      </section>
 
-      <section className="px-6 py-12">
-        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_360px]">
-          {/* Canvas */}
-          <div className="overflow-hidden rounded-3xl border border-brand-black/5 bg-brand-gray">
-            <div className="flex items-center justify-between border-b border-brand-black/5 bg-white px-6 py-3">
-              <div className="flex gap-2">
-                <div className="size-3 rounded-full bg-red-400" />
-                <div className="size-3 rounded-full bg-yellow-400" />
-                <div className="size-3 rounded-full bg-green-400" />
-              </div>
-              <div className="flex overflow-hidden rounded-full border border-brand-black/10">
-                {(["front", "back"] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setView(v)}
-                    className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest ${
-                      view === v ? "bg-brand-black text-white" : "text-brand-black/60"
+        {/* Bottom row: text + graphics */}
+        <div className="lg:col-span-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <Panel number={5} title="Text & properties">
+            <TextPanel
+              layers={layers.filter((l): l is TextLayer => l.type === "text")}
+              selectedId={selectedId}
+              onSelect={(l) => {
+                setSide(l.side);
+                setSelectedId(l.id);
+              }}
+              onAdd={addText}
+              onDelete={removeLayer}
+              onChange={(id, patch) =>
+                commit((current) =>
+                  current.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)),
+                )
+              }
+            />
+          </Panel>
+
+          <Panel number={6} title="Uploaded graphics & shapes">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {layers
+                .filter(
+                  (l): l is ImageLayer | ShapeLayer => l.type === "image" || l.type === "shape",
+                )
+                .map((l) => (
+                  <div
+                    key={l.id}
+                    className={`group relative rounded-xl border p-2 ${
+                      l.id === selectedId ? "border-[#FF5F1F]" : "border-white/10"
                     }`}
                   >
-                    {v}
-                  </button>
-                ))}
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-brand-black/40">
-                {shirt.name}
-              </span>
-            </div>
-
-            <div className="relative grid min-h-[560px] place-items-center p-8 studio-dot-grid">
-              {/* Shirt mockup with color tint */}
-              <div className="relative aspect-[5/6] w-full max-w-[480px] filter drop-shadow-[0_20px_40px_rgba(0,0,0,0.08)] dark:drop-shadow-[0_20px_40px_rgba(0,0,0,0.45)]">
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: shirt.value,
-                    maskImage: `url(${view === "front" ? teeFront : teeBack})`,
-                    WebkitMaskImage: `url(${view === "front" ? teeFront : teeBack})`,
-                    maskSize: "contain",
-                    WebkitMaskSize: "contain",
-                    maskRepeat: "no-repeat",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskPosition: "center",
-                    WebkitMaskPosition: "center",
-                  }}
-                />
-                {/* Print area */}
-                <div className="absolute left-1/2 top-[34%] flex w-[42%] -translate-x-1/2 flex-col items-center gap-3">
-                  {imageUrl && (
-                    <img
-                      src={imageUrl}
-                      alt="Uploaded design"
-                      style={{ width: imageSize, height: "auto" }}
-                      className="select-none"
-                      draggable={false}
-                    />
-                  )}
-                  {text && (
-                    <span
-                      className="text-center font-bold leading-tight"
-                      style={{
-                        fontFamily: font,
-                        fontSize,
-                        color: textColor,
-                        textShadow: "0 1px 0 rgba(0,0,0,0.04)",
-                      }}
-                    >
-                      {text}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Controls */}
-          <aside className="space-y-8">
-            <Panel title="Select Apparel Blank">
-              {/* Category selector pills */}
-              <div className="flex flex-wrap gap-1.5 pb-2.5 border-b border-brand-black/5 mb-3">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider transition-all duration-200 border ${
-                      selectedCategory === cat
-                        ? "bg-brand-black text-white border-brand-black shadow-sm"
-                        : "border-brand-black/10 text-brand-black/60 hover:border-brand-black"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              {/* Category products grid */}
-              <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto pr-1">
-                {studioProducts
-                  .filter((p) => p.category === selectedCategory)
-                  .map((prod) => (
                     <button
-                      key={prod.id}
                       type="button"
-                      onClick={() => setSelectedProduct(prod)}
-                      className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
-                        selectedProduct.id === prod.id
-                          ? "border-brand-orange bg-brand-orange/5"
-                          : "border-brand-black/10 hover:border-brand-black"
-                      }`}
+                      onClick={() => {
+                        setSide(l.side);
+                        setSelectedId(l.id);
+                      }}
+                      className="grid h-20 w-full place-items-center overflow-hidden rounded-lg bg-white/5"
                     >
-                      <div className="h-10 w-10 overflow-hidden rounded-md bg-neutral-50 flex items-center justify-center p-1">
+                      {l.type === "image" ? (
                         <img
-                          src={prod.image}
-                          alt={prod.name}
-                          className="h-full w-full object-cover"
+                          src={l.src}
+                          alt={l.name}
+                          className="max-h-full max-w-full object-contain"
                         />
-                      </div>
-                      <span className="text-[8px] font-extrabold uppercase tracking-wider truncate w-full text-brand-black/80">
-                        {prod.name}
-                      </span>
-                      <span className="text-[9px] font-extrabold text-brand-orange">
-                        ${prod.price}
-                      </span>
+                      ) : (
+                        <ShapeGlyph kind={l.kind} color={l.color} />
+                      )}
                     </button>
-                  ))}
-              </div>
-            </Panel>
-
-            <Panel title="Garment color">
-              <div className="flex flex-wrap gap-2">
-                {selectedProduct.colors.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setShirt({
-                      name: COLOR_NAMES[c] || "Custom Color",
-                      value: c,
-                      text: getContrastColor(c)
-                    })}
-                    aria-label={COLOR_NAMES[c] || "Color"}
-                    className={`size-10 rounded-full border-2 ${
-                      shirt.value === c ? "border-brand-orange" : "border-brand-black/10"
-                    }`}
-                    style={{ background: c }}
-                  />
+                    <div className="mt-1.5 flex items-center justify-between gap-1">
+                      <span className="truncate text-[10px] uppercase tracking-wider text-zinc-400">
+                        {l.side} · {l.type === "image" ? l.name : l.kind}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Remove"
+                        onClick={() => removeLayer(l.id)}
+                        className="text-zinc-500 transition hover:text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </div>
-            </Panel>
 
-            <Panel title="Upload artwork">
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="inline-flex w-full items-center justify-center gap-2 border-2 border-dashed border-brand-black/20 px-4 py-6 text-xs font-bold uppercase tracking-widest hover:border-brand-orange hover:text-brand-orange"
+                className="grid h-[118px] place-items-center rounded-xl border-2 border-dashed border-white/15 text-center text-xs text-zinc-400 transition hover:border-[#FF5F1F] hover:text-white"
               >
-                <Upload className="h-4 w-4" />
-                {imageUrl ? "Replace image" : "Choose file"}
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                onChange={handleUpload}
-                className="hidden"
-              />
-              {imageUrl && (
-                <div className="mt-4 space-y-3">
-                  {/* Uploaded Photo Preview Box */}
-                  <div className="p-3 border border-brand-black/5 bg-brand-gray/30 rounded-2xl flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-lg bg-white overflow-hidden flex items-center justify-center p-1 border border-brand-black/10 shrink-0">
-                      <img src={imageUrl} alt="Uploaded graphic" className="h-full w-full object-contain" />
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-black/80 truncate">Uploaded Photo</p>
-                      <p className="text-[9px] text-brand-black/40 uppercase">Saved as PDF for manufacturing</p>
-                    </div>
-                  </div>
-
-                  <RangeRow
-                    label={`Image size: ${imageSize}px`}
-                    value={imageSize}
-                    min={60}
-                    max={320}
-                    onChange={setImageSize}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl(null)}
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-black/60 hover:text-brand-orange"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Remove image
-                  </button>
-                </div>
-              )}
-            </Panel>
-
-            <Panel title="Reference Designs">
-              <p className="mb-3 text-[10px] leading-relaxed text-brand-black/50 uppercase tracking-wider">
-                Select a premium graphic to overlay on your design area:
-              </p>
-              <div className="grid grid-cols-2 gap-2.5">
-                {designs.map((design) => (
-                  <button
-                    key={design.id}
-                    type="button"
-                    onClick={() => {
-                      setImageUrl(design.svg);
-                      if (imageSize < 120) {
-                        setImageSize(180);
-                      }
-                    }}
-                    className={`flex flex-col items-center gap-2 rounded-xl border p-2.5 text-center transition-all ${
-                      imageUrl === design.svg
-                        ? "border-brand-orange bg-brand-orange/5"
-                        : "border-brand-black/10 hover:border-brand-black"
-                    }`}
-                  >
-                    <div className="aspect-square w-full overflow-hidden rounded-lg bg-neutral-50 p-1.5 flex items-center justify-center">
-                      <img
-                        src={design.svg}
-                        alt={design.name}
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-brand-black/70">
-                      {design.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title={<><Type className="mr-2 inline h-4 w-4" />Text</>}>
-              <input
-                type="text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                maxLength={40}
-                placeholder="Your text"
-                className="w-full border border-brand-black/15 px-3 py-2 text-sm focus:border-brand-orange focus:outline-none"
-              />
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {FONTS.map((f) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() => setFont(f.value)}
-                    style={{ fontFamily: f.value }}
-                    className={`border px-3 py-2 text-sm ${
-                      font === f.value
-                        ? "border-brand-black bg-brand-black text-white"
-                        : "border-brand-black/15"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4">
-                <RangeRow
-                  label={`Size: ${fontSize}px`}
-                  value={fontSize}
-                  min={14}
-                  max={84}
-                  onChange={setFontSize}
-                />
-              </div>
-              <div className="mt-4">
-                <span className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-brand-black/60">
-                  Text color
+                <span>
+                  <ImageIcon className="mx-auto mb-1 h-5 w-5" />
+                  Upload image
+                  <span className="mt-0.5 block text-[10px] text-zinc-500">
+                    PNG, JPG, SVG · max 5 MB
+                  </span>
                 </span>
-                <div className="flex flex-wrap gap-2">
-                  {["#0A0A0A", "#FFFFFF", "#FF5F1F", "#1F2A44", "#7F1D1D", "#F5EFE0"].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setTextColor(c)}
-                      aria-label={`Text color ${c}`}
-                      className={`size-8 rounded-full border-2 ${
-                        textColor === c ? "border-brand-orange" : "border-brand-black/10"
-                      }`}
-                      style={{ background: c }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </Panel>
-
-            {/* Pricing Calculator Panel */}
-            <Panel title="Pricing Calculator">
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between text-brand-black/60">
-                  <span>Base Blank:</span>
-                  <span className="font-bold text-brand-black">${basePrice.toFixed(2)}</span>
-                </div>
-                {hasCustomText && (
-                  <div className="flex justify-between text-brand-black/60">
-                    <span>Text Printing Fee:</span>
-                    <span className="font-bold text-brand-black">+$2.00</span>
-                  </div>
-                )}
-                {hasCustomGraphic && (
-                  <div className="flex justify-between text-brand-black/60">
-                    <span>Graphic Printing Fee:</span>
-                    <span className="font-bold text-brand-black">+$3.50</span>
-                  </div>
-                )}
-                <div className="border-t border-brand-black/5 pt-2.5 flex justify-between font-display text-sm font-bold text-brand-orange mt-2">
-                  <span>Total Estimated Rate:</span>
-                  <span className="text-base font-extrabold">${totalPrice.toFixed(2)}</span>
-                </div>
-              </div>
-            </Panel>
-          </aside>
-        </div>
-      </section>
-
-      {/* Order Dialog Modal Overlay */}
-      {showOrderModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-brand-black/5 bg-white p-8 shadow-2xl animate-fade-in">
-            <h2 className="font-display text-2xl font-extrabold uppercase tracking-tight text-brand-black">Complete Your Order</h2>
-            <p className="mt-1 text-xs text-brand-black/50">
-              Garment: <span className="font-bold">{selectedProduct.name}</span> (Color: {shirt.name}, Price: ${selectedProduct.price})
-            </p>
-            
-            <form onSubmit={handlePlaceOrder} className="mt-6 space-y-4">
-              <label className="block space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">Shipping Name</span>
-                <input
-                  required
-                  value={shippingName}
-                  onChange={(e) => setShippingName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full rounded-xl border border-brand-black/10 px-4 py-2.5 text-sm outline-none focus:border-brand-orange"
-                />
-              </label>
-              
-              <label className="block space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">Shipping Address</span>
-                <textarea
-                  required
-                  value={shippingAddress}
-                  onChange={(e) => setShippingAddress(e.target.value)}
-                  placeholder="123 Creative Street, Apt 4B, New York, NY 10001"
-                  rows={3}
-                  className="w-full rounded-xl border border-brand-black/10 px-4 py-2.5 text-sm outline-none focus:border-brand-orange"
-                />
-              </label>
-              
-              <label className="block space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">Phone Number</span>
-                <input
-                  required
-                  type="tel"
-                  value={shippingPhone}
-                  onChange={(e) => setShippingPhone(e.target.value)}
-                  placeholder="555-0199"
-                  className="w-full rounded-xl border border-brand-black/10 px-4 py-2.5 text-sm outline-none focus:border-brand-orange"
-                />
-              </label>
-
-              {/* Rate Summary */}
-              <div className="flex justify-between items-center bg-brand-gray p-4 rounded-2xl border border-brand-black/5 mt-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/50">Total Rate</span>
-                <span className="font-display text-lg font-extrabold text-brand-orange">${selectedProduct.price.toFixed(2)}</span>
-              </div>
-              
-              <div className="mt-6 flex justify-end gap-3 border-t border-brand-black/5 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowOrderModal(false)}
-                  className="border border-brand-black/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-brand-black/60 hover:text-brand-orange"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-brand-black px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white hover:bg-brand-orange shadow-brand transition hover:-translate-y-0.5"
-                >
-                  Confirm Order - ${selectedProduct.price.toFixed(2)}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Success Modal Overlay */}
-      {orderSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm text-center rounded-3xl border border-brand-black/5 bg-white p-8 shadow-2xl animate-fade-in">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600 font-bold text-xl">
-              ✓
+              </button>
             </div>
-            <h2 className="mt-4 font-display text-2xl font-extrabold uppercase tracking-tight text-brand-black">Order Placed!</h2>
-            <p className="mt-2 text-sm text-brand-black/60">
-              Your order has been recorded successfully and we have redirected you to WhatsApp to chat with the owner.
-            </p>
-            <div className="mt-3 rounded-lg bg-brand-gray p-3 text-xs font-bold text-brand-black/70">
-              Order ID: {orderSuccess}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setOrderSuccess(null);
-                reset();
-              }}
-              className="mt-6 w-full bg-brand-black py-3 text-xs font-bold uppercase tracking-widest text-white hover:bg-brand-orange"
-            >
-              Design Another
-            </button>
-          </div>
+          </Panel>
         </div>
-      )}
-    </PageShell>
+      </div>
+    </div>
   );
 }
 
-function Panel({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
+/* ------------------------------------------------------------------ */
+/* Sub-components                                                      */
+/* ------------------------------------------------------------------ */
+
+function StudioHeader({
+  cartQty,
+  onOpenCart,
+  onSave,
+}: {
+  cartQty: number;
+  onOpenCart: () => void;
+  onSave: () => void;
+}) {
   return (
-    <section className="rounded-2xl border border-brand-black/5 bg-white p-6">
-      <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-brand-black/70">
-        {title}
-      </h3>
+    <header className="sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 bg-[#0b0b0d]/95 px-4 py-3 backdrop-blur">
+      <div className="flex min-w-0 items-center gap-3">
+        <Link to="/" className="shrink-0 text-lg font-extrabold tracking-tight">
+          Custom<span className="text-[#FF5F1F]">ON</span>
+        </Link>
+        <span className="hidden text-zinc-600 sm:inline">/</span>
+        <h1 className="truncate text-sm font-semibold text-zinc-300 sm:text-base">Design Studio</h1>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onSave}
+          className="hidden items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/40 sm:flex"
+        >
+          <Save className="h-4 w-4" /> Save design
+        </button>
+        <Link
+          to="/dashboard"
+          search={{ tab: "orders" }}
+          className="hidden items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/40 sm:flex"
+        >
+          <Layers className="h-4 w-4" /> My designs
+        </Link>
+        <button
+          type="button"
+          onClick={onOpenCart}
+          className="relative rounded-lg border border-white/15 p-2 transition hover:border-white/40"
+          aria-label="Open cart"
+        >
+          <ShoppingCart className="h-4 w-4" />
+          {cartQty > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-[#FF5F1F] text-[10px] font-bold">
+              {cartQty}
+            </span>
+          )}
+        </button>
+        <Link
+          to="/"
+          className="rounded-lg p-2 text-zinc-400 transition hover:text-white"
+          aria-label="Exit studio"
+        >
+          <X className="h-4 w-4" />
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function Panel({
+  number,
+  title,
+  children,
+}: {
+  number: number;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-[#131316] p-4">
+      <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300">
+        <span className="text-[#FF5F1F]">{number}.</span> {title}
+      </h2>
       {children}
     </section>
   );
 }
 
-function RangeRow({
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-1 text-sm">
+      <span className="truncate text-zinc-400">{label}</span>
+      <span className="font-semibold">{value}</span>
+    </div>
+  );
+}
+
+function ToolButton({
+  icon: Icon,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: typeof TypeIcon;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`grid h-12 w-12 place-items-center rounded-lg text-[9px] font-semibold uppercase tracking-wide transition ${
+        active ? "bg-[#FF5F1F] text-white" : "text-zinc-400 hover:bg-white/10 hover:text-white"
+      } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
+    >
+      <span className="flex flex-col items-center gap-0.5">
+        <Icon className="h-4 w-4" />
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function CanvasAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  danger,
+}: {
+  icon: typeof TypeIcon;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 font-semibold transition ${
+        danger ? "text-red-400 hover:border-red-400/60" : "text-zinc-300 hover:border-white/35"
+      } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
+    >
+      <Icon className="h-3.5 w-3.5" /> {label}
+    </button>
+  );
+}
+
+function ShapeGlyph({ kind, color }: { kind: ShapeKind; color: string }) {
+  if (kind === "circle")
+    return <span className="h-10 w-10 rounded-full" style={{ backgroundColor: color }} />;
+  if (kind === "square")
+    return <span className="h-10 w-10 rounded-sm" style={{ backgroundColor: color }} />;
+  return (
+    <span
+      className="h-10 w-10"
+      style={{ backgroundColor: color, clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }}
+    />
+  );
+}
+
+function LayerView({
+  layer,
+  selected,
+  printHeight,
+  onPointerDown,
+  onResize,
+  onRotate,
+  onDelete,
+  onDuplicate,
+}: {
+  layer: Layer;
+  selected: boolean;
+  printHeight: number;
+  onPointerDown: (e: ReactPointerEvent) => void;
+  onResize: (e: ReactPointerEvent) => void;
+  onRotate: (e: ReactPointerEvent) => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+}) {
+  const wrapperStyle: CSSProperties = {
+    left: `${layer.x}%`,
+    top: `${layer.y}%`,
+    width: `${layer.width}%`,
+    transform: `translate(-50%, -50%) rotate(${layer.rotation}deg)`,
+    opacity: layer.opacity,
+  };
+
+  const scale = printHeight > 0 ? printHeight / REFERENCE_HEIGHT : 1;
+
+  return (
+    <div
+      className={`absolute touch-none select-none ${selected ? "outline-1 outline-dashed outline-[#FF5F1F]" : ""}`}
+      style={wrapperStyle}
+      onPointerDown={onPointerDown}
+    >
+      {layer.type === "text" && (
+        <div
+          style={{
+            fontFamily: layer.font,
+            color: layer.color,
+            fontSize: `${layer.fontSize * scale}px`,
+            fontWeight: layer.bold ? 800 : 500,
+            fontStyle: layer.italic ? "italic" : "normal",
+            textDecoration: layer.underline ? "underline" : "none",
+            textAlign: layer.align,
+            letterSpacing: `${layer.letterSpacing}px`,
+            lineHeight: 1.1,
+            wordBreak: "break-word",
+          }}
+        >
+          {layer.text}
+        </div>
+      )}
+
+      {layer.type === "image" && (
+        <img src={layer.src} alt={layer.name} draggable={false} className="w-full object-contain" />
+      )}
+
+      {layer.type === "shape" && (
+        <div
+          className="w-full"
+          style={{
+            aspectRatio: "1 / 1",
+            backgroundColor: layer.color,
+            borderRadius: layer.kind === "circle" ? "9999px" : layer.kind === "square" ? "4px" : 0,
+            clipPath: layer.kind === "triangle" ? "polygon(50% 0%, 100% 100%, 0% 100%)" : undefined,
+          }}
+        />
+      )}
+
+      {selected && (
+        <>
+          <button
+            type="button"
+            aria-label="Resize"
+            onPointerDown={onResize}
+            className="absolute -bottom-2.5 -right-2.5 h-5 w-5 cursor-nwse-resize rounded-full border-2 border-white bg-[#FF5F1F]"
+          />
+          <button
+            type="button"
+            aria-label="Rotate"
+            onPointerDown={onRotate}
+            className="absolute -top-7 left-1/2 h-5 w-5 -translate-x-1/2 cursor-grab rounded-full border-2 border-white bg-sky-500"
+          />
+          <div className="absolute -top-7 right-0 flex gap-1">
+            <button
+              type="button"
+              aria-label="Duplicate layer"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onDuplicate}
+              className="grid h-5 w-5 place-items-center rounded-full bg-white/90 text-black"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              aria-label="Delete layer"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onDelete}
+              className="grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TextPanel({
+  layers,
+  selectedId,
+  onSelect,
+  onAdd,
+  onDelete,
+  onChange,
+}: {
+  layers: TextLayer[];
+  selectedId: string | null;
+  onSelect: (layer: TextLayer) => void;
+  onAdd: () => void;
+  onDelete: (id: string) => void;
+  onChange: (id: string, patch: Partial<TextLayer>) => void;
+}) {
+  const active = layers.find((l) => l.id === selectedId) ?? layers[0] ?? null;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
+      <div className="space-y-2">
+        {layers.map((l) => (
+          <div
+            key={l.id}
+            className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${
+              l.id === active?.id ? "border-[#FF5F1F] bg-[#FF5F1F]/10" : "border-white/10"
+            }`}
+          >
+            <button type="button" onClick={() => onSelect(l)} className="min-w-0 text-left">
+              <span className="block truncate text-xs font-semibold">{l.text || "(empty)"}</span>
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">{l.side}</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Delete text"
+              onClick={() => onDelete(l.id)}
+              className="shrink-0 text-zinc-500 transition hover:text-red-400"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={onAdd}
+          className="w-full rounded-lg border border-dashed border-white/20 py-2 text-xs font-semibold text-zinc-300 transition hover:border-[#FF5F1F] hover:text-white"
+        >
+          + Add text layer
+        </button>
+      </div>
+
+      {active ? (
+        <div className="space-y-3">
+          <textarea
+            value={active.text}
+            onChange={(e) => onChange(active.id, { text: e.target.value })}
+            rows={2}
+            placeholder="Type your text"
+            className="w-full resize-none rounded-lg border border-white/10 bg-white/[0.04] p-2.5 text-sm outline-none focus:border-[#FF5F1F]"
+          />
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={active.font}
+              onChange={(e) => onChange(active.id, { font: e.target.value })}
+              className="min-w-[150px] flex-1 rounded-lg border border-white/10 bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+            >
+              {FONTS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={String(Math.round(active.fontSize))}
+              onChange={(e) => onChange(active.id, { fontSize: Number(e.target.value) })}
+              className="w-24 rounded-lg border border-white/10 bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+            >
+              {Array.from(
+                new Set([
+                  ...[16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 88, 104],
+                  Math.round(active.fontSize),
+                ]),
+              )
+                .sort((a, b) => a - b)
+                .map((s) => (
+                  <option key={s} value={s}>
+                    {s} px
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex overflow-hidden rounded-lg border border-white/10">
+              <Toggle
+                active={active.bold}
+                onClick={() => onChange(active.id, { bold: !active.bold })}
+                label="Bold"
+              >
+                <Bold className="h-3.5 w-3.5" />
+              </Toggle>
+              <Toggle
+                active={active.italic}
+                onClick={() => onChange(active.id, { italic: !active.italic })}
+                label="Italic"
+              >
+                <Italic className="h-3.5 w-3.5" />
+              </Toggle>
+              <Toggle
+                active={active.underline}
+                onClick={() => onChange(active.id, { underline: !active.underline })}
+                label="Underline"
+              >
+                <Underline className="h-3.5 w-3.5" />
+              </Toggle>
+            </div>
+            <div className="inline-flex overflow-hidden rounded-lg border border-white/10">
+              <Toggle
+                active={active.align === "left"}
+                onClick={() => onChange(active.id, { align: "left" })}
+                label="Align left"
+              >
+                <AlignLeft className="h-3.5 w-3.5" />
+              </Toggle>
+              <Toggle
+                active={active.align === "center"}
+                onClick={() => onChange(active.id, { align: "center" })}
+                label="Align centre"
+              >
+                <AlignCenter className="h-3.5 w-3.5" />
+              </Toggle>
+              <Toggle
+                active={active.align === "right"}
+                onClick={() => onChange(active.id, { align: "right" })}
+                label="Align right"
+              >
+                <AlignRight className="h-3.5 w-3.5" />
+              </Toggle>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {INK_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={`Text colour ${c}`}
+                  onClick={() => onChange(active.id, { color: c })}
+                  className={`h-6 w-6 rounded-full border-2 ${
+                    active.color.toLowerCase() === c.toLowerCase()
+                      ? "border-[#FF5F1F]"
+                      : "border-white/20"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <SliderRow
+            label="Letter spacing"
+            value={active.letterSpacing}
+            min={-4}
+            max={24}
+            step={0.5}
+            onChange={(v) => onChange(active.id, { letterSpacing: v })}
+          />
+          <SliderRow
+            label="Rotation"
+            value={active.rotation}
+            min={-180}
+            max={180}
+            step={1}
+            onChange={(v) => onChange(active.id, { rotation: v })}
+          />
+          <SliderRow
+            label="Opacity"
+            value={Math.round(active.opacity * 100)}
+            min={10}
+            max={100}
+            step={1}
+            onChange={(v) => onChange(active.id, { opacity: v / 100 })}
+          />
+        </div>
+      ) : (
+        <p className="self-center text-sm text-zinc-500">
+          Add a text layer to edit fonts, colours, spacing and alignment.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Toggle({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+      className={`px-3 py-2 transition ${active ? "bg-[#FF5F1F] text-white" : "text-zinc-400 hover:bg-white/10"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SliderRow({
   label,
   value,
   min,
   max,
+  step,
   onChange,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
-  onChange: (v: number) => void;
+  step: number;
+  onChange: (value: number) => void;
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-brand-black/60">
+      <span className="flex items-center justify-between text-[11px] uppercase tracking-widest text-zinc-400">
         {label}
+        <span className="font-semibold text-zinc-200">{value}</span>
       </span>
       <input
         type="range"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-brand-orange"
+        className="mt-1.5 w-full accent-[#FF5F1F]"
       />
     </label>
   );
 }
 
+function CartDrawer({
+  items,
+  checkout,
+  onCheckoutChange,
+  onClose,
+  onRemove,
+  onQuantity,
+  onPlaceOrder,
+}: {
+  items: CartItem[];
+  checkout: { name: string; address: string; phone: string };
+  onCheckoutChange: (value: { name: string; address: string; phone: string }) => void;
+  onClose: () => void;
+  onRemove: (id: string) => void;
+  onQuantity: (id: string, quantity: number) => void;
+  onPlaceOrder: () => void;
+}) {
+  const total = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
 
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
+      <aside
+        className="flex h-full w-full max-w-md flex-col border-l border-white/10 bg-[#131316]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 p-4">
+          <h2 className="truncate text-sm font-bold uppercase tracking-widest">Your cart</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close cart"
+            className="text-zinc-400 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          {items.length === 0 && <p className="text-sm text-zinc-500">Your cart is empty.</p>}
+          {items.map((item) => (
+            <div key={item.id} className="rounded-xl border border-white/10 p-3">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+                <span className="grid h-16 w-14 shrink-0 place-items-center rounded-lg bg-white/5">
+                  <GarmentImage
+                    product={
+                      PRODUCTS.find((candidate) => candidate.id === item.productId) ?? PRODUCTS[0]!
+                    }
+                    side="front"
+                    size={item.size}
+                    color={item.color}
+                    className="h-14 w-12"
+                  />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{item.productName}</p>
+                  <p className="text-[11px] text-zinc-400">
+                    {item.colorName} · {item.targetGroup} · Size {item.size}
+                  </p>
+                  <p className="truncate text-[11px] text-zinc-500">{item.summary}</p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onQuantity(item.id, item.quantity - 1)}
+                      className="h-6 w-6 rounded border border-white/10"
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center text-xs">{item.quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => onQuantity(item.id, item.quantity + 1)}
+                      className="h-6 w-6 rounded border border-white/10"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-bold text-[#FF5F1F]">
+                    ${(item.unitPrice * item.quantity).toFixed(2)}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Remove item"
+                    onClick={() => onRemove(item.id)}
+                    className="mt-1 text-zinc-500 hover:text-red-400"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2 border-t border-white/10 p-4">
+          <input
+            value={checkout.name}
+            onChange={(e) => onCheckoutChange({ ...checkout, name: e.target.value })}
+            placeholder="Shipping name"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+          />
+          <input
+            value={checkout.address}
+            onChange={(e) => onCheckoutChange({ ...checkout, address: e.target.value })}
+            placeholder="Shipping address"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+          />
+          <input
+            value={checkout.phone}
+            onChange={(e) => onCheckoutChange({ ...checkout, phone: e.target.value })}
+            placeholder="Phone number"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+          />
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Total</span>
+            <span className="text-lg font-extrabold text-[#FF5F1F]">${total.toFixed(2)}</span>
+          </div>
+          <button
+            type="button"
+            disabled={items.length === 0}
+            onClick={onPlaceOrder}
+            className="w-full rounded-lg bg-[#FF5F1F] py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-[#ff7a45] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Place order
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}

@@ -1,3 +1,11 @@
+import {
+  getCustomerSavedDesigns,
+  getCustomerWishlist,
+  removeCustomerDesign,
+  saveCustomerDesign,
+  toggleCustomerWishlist,
+} from "./db/app-service";
+
 export interface SavedDesign {
   id: string;
   date: string;
@@ -13,77 +21,39 @@ export interface SavedDesign {
   price: number;
 }
 
-export function getWishlistProducts(username?: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const key = username ? `customon:wishlist:products:${username}` : "customon:wishlist:products";
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+export function getWishlistProducts(_username?: string): Promise<string[]> {
+  return getCustomerWishlist();
 }
 
-export function toggleProductWishlist(productId: string, username?: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const list = getWishlistProducts(username);
-    const index = list.indexOf(productId);
-    let added = false;
-    if (index > -1) {
-      list.splice(index, 1);
-    } else {
-      list.push(productId);
-      added = true;
-    }
-    const key = username ? `customon:wishlist:products:${username}` : "customon:wishlist:products";
-    localStorage.setItem(key, JSON.stringify(list));
-    return added;
-  } catch {
-    return false;
-  }
+export async function toggleProductWishlist(
+  productId: string,
+  _username?: string,
+): Promise<boolean> {
+  const result = await toggleCustomerWishlist({ data: { productId } });
+  return result.added;
 }
 
-export function isProductWishlisted(productId: string, username?: string): boolean {
-  return getWishlistProducts(username).includes(productId);
+export async function isProductWishlisted(productId: string, _username?: string): Promise<boolean> {
+  const ids = await getWishlistProducts();
+  return ids.includes(productId);
 }
 
-export function getWishlistDesigns(username?: string): SavedDesign[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const key = username ? `customon:wishlist:designs:${username}` : "customon:wishlist:designs";
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+export async function getWishlistDesigns(_username?: string): Promise<SavedDesign[]> {
+  const rows = await getCustomerSavedDesigns();
+  return rows.map((row) => ({ ...row, date: row.createdAt }));
 }
 
-export function saveDesignToWishlist(design: Omit<SavedDesign, "id" | "date">, username?: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    const list = getWishlistDesigns(username);
-    const newDesign: SavedDesign = {
-      ...design,
-      id: `DSN-${Math.floor(100000 + Math.random() * 900000)}`,
-      date: new Date().toISOString(),
-    };
-    list.push(newDesign);
-    const key = username ? `customon:wishlist:designs:${username}` : "customon:wishlist:designs";
-    localStorage.setItem(key, JSON.stringify(list));
-  } catch {
-    // noop
-  }
+export async function saveDesignToWishlist(
+  design: Omit<SavedDesign, "id" | "date">,
+  _username?: string,
+): Promise<SavedDesign> {
+  const saved = await saveCustomerDesign({ data: design });
+  return { ...saved, date: saved.createdAt };
 }
 
-export function removeDesignFromWishlist(designId: string, username?: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    const list = getWishlistDesigns(username);
-    const filtered = list.filter((d) => d.id !== designId);
-    const key = username ? `customon:wishlist:designs:${username}` : "customon:wishlist:designs";
-    localStorage.setItem(key, JSON.stringify(filtered));
-  } catch {
-    // noop
-  }
+export function removeDesignFromWishlist(
+  designId: string,
+  _username?: string,
+): Promise<{ success: boolean }> {
+  return removeCustomerDesign({ data: { id: designId } });
 }

@@ -10,7 +10,8 @@ export function SiteFooter() {
             CUSTOM<span className="text-brand-orange">ON</span>
           </span>
           <p className="mb-8 max-w-sm text-xs leading-relaxed text-white/40">
-            Your trusted online destination for premium quality products. We're committed to providing exceptional customer service and an outstanding shopping experience.
+            Your trusted online destination for premium quality products. We're committed to
+            providing exceptional customer service and an outstanding shopping experience.
           </p>
           <div className="flex gap-3">
             {[
@@ -33,20 +34,42 @@ export function SiteFooter() {
         <div>
           <h5 className="mb-6 text-sm font-bold uppercase tracking-widest">The Catalog</h5>
           <ul className="space-y-4 text-sm text-white/50">
-            <li><Link to="/products" className="hover:text-white">T-Shirts</Link></li>
-            <li><Link to="/products" className="hover:text-white">Hoodies</Link></li>
-            <li><Link to="/products" className="hover:text-white">Polo Shirts</Link></li>
-            <li><Link to="/products" className="hover:text-white">Mugs</Link></li>
+            <li>
+              <Link to="/products" className="hover:text-white">
+                T-Shirts
+              </Link>
+            </li>
+            <li>
+              <Link to="/products" className="hover:text-white">
+                Hoodies
+              </Link>
+            </li>
           </ul>
         </div>
 
         <div>
           <h5 className="mb-6 text-sm font-bold uppercase tracking-widest">Support</h5>
           <ul className="space-y-4 text-sm text-white/50">
-            <li><Link to="/pricing" className="hover:text-white">Pricing</Link></li>
-            <li><Link to="/about" className="hover:text-white">About Us</Link></li>
-            <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
-            <li><Link to="/studio" className="hover:text-white">Design Studio</Link></li>
+            <li>
+              <Link to="/pricing" className="hover:text-white">
+                Pricing
+              </Link>
+            </li>
+            <li>
+              <Link to="/about" className="hover:text-white">
+                About Us
+              </Link>
+            </li>
+            <li>
+              <Link to="/contact" className="hover:text-white">
+                Contact
+              </Link>
+            </li>
+            <li>
+              <Link to="/studio" className="hover:text-white">
+                Design Studio
+              </Link>
+            </li>
           </ul>
         </div>
 
@@ -63,7 +86,9 @@ export function SiteFooter() {
             </li>
             <li className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 shrink-0 text-brand-orange" />
-              <a href="mailto:Customon.in@gmail.com" className="hover:text-white truncate">Customon.in@gmail.com</a>
+              <a href="mailto:Customon.in@gmail.com" className="hover:text-white truncate">
+                Customon.in@gmail.com
+              </a>
             </li>
             <li className="flex items-start gap-2">
               <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-orange" />
@@ -78,6 +103,9 @@ export function SiteFooter() {
         <div className="flex gap-6">
           <a href="#">Privacy</a>
           <a href="#">Terms</a>
+          <Link to="/admin" className="text-white/40 hover:text-brand-orange transition-colors">
+            Admin Portal
+          </Link>
         </div>
       </div>
     </footer>

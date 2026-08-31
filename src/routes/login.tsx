@@ -18,7 +18,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { user, login, registerUser } = useAuth();
+  const { user, login, registerUser, isLoading } = useAuth();
   const navigate = useNavigate();
   const [isRegistering, setIsRegistering] = useState(false);
   const [role, setRole] = useState<Role>("customer");
@@ -28,29 +28,29 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // If already logged in, redirect to correct landing page
+  // If already logged in, redirect to correct landing page once session loading completes
   useEffect(() => {
-    if (user) {
+    if (!isLoading && user) {
       navigate({ to: user.role === "shop-owner" ? "/dashboard" : "/products" });
     }
-  }, [user, navigate]);
+  }, [user, isLoading, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     const trimmedUsername = username.trim();
     if (!trimmedUsername) {
-      setError(role === "customer" ? "Phone number is required." : "Username is required.");
+      setError(role === "customer" ? "Please enter your phone number." : "Username is required.");
       return;
     }
 
     if (role === "customer") {
       // Validate phone number (accepting optional +91 or 0 prefix, and 10 digits starting with 6-9)
-      const cleanPhone = trimmedUsername.replace(/[\s\-\(\)]/g, "");
+      const cleanPhone = trimmedUsername.replace(/[\s\-()]/g, "");
       const phoneRegex = /^(?:\+91|0)?[6-9]\d{9}$/;
       if (!phoneRegex.test(cleanPhone)) {
-        setError("Please enter a valid 10-digit phone number (e.g., 7090637746).");
+        setError("Please enter a valid phone number.");
         return;
       }
     } else {
@@ -63,7 +63,7 @@ function LoginPage() {
     if (isRegistering) {
       const trimmedName = name.trim();
       if (!trimmedName) {
-        setError("Name is required.");
+        setError("Please enter your name.");
         return;
       }
       if (!password) {
@@ -76,22 +76,22 @@ function LoginPage() {
       }
 
       // Perform registration
-      const regRes = registerUser(trimmedUsername, role, password, trimmedName);
+      const regRes = await registerUser(trimmedUsername, role, password, trimmedName);
       if (!regRes.success) {
         setError(regRes.error || "Registration failed.");
         return;
       }
-    }
-
-    // Perform login
-    const loginRes = login(trimmedUsername, role, password);
-    if (!loginRes.success) {
-      setError(loginRes.error || "Login failed.");
-      return;
+    } else {
+      // Perform login
+      const loginRes = await login(trimmedUsername, role, password);
+      if (!loginRes.success) {
+        setError(loginRes.error || "Login failed.");
+        return;
+      }
     }
 
     setSuccess(true);
-    
+
     // Redirect after a short delay for smooth visual feedback
     setTimeout(() => {
       navigate({ to: role === "shop-owner" ? "/dashboard" : "/products" });
@@ -116,38 +116,9 @@ function LoginPage() {
             </p>
           </div>
 
-          {/* Role Tabs */}
-          <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-brand-gray p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setRole("customer");
-                setError("");
-              }}
-              className={`flex items-center justify-center gap-2 rounded-lg py-3 text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-                role === "customer"
-                  ? "bg-white text-brand-black shadow-sm"
-                  : "text-brand-black/50 hover:text-brand-black"
-              }`}
-            >
-              <UserIcon className="h-4 w-4" />
-              Customer
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setRole("shop-owner");
-                setError("");
-              }}
-              className={`flex items-center justify-center gap-2 rounded-lg py-3 text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-                role === "shop-owner"
-                  ? "bg-brand-orange text-white shadow-sm"
-                  : "text-brand-black/50 hover:text-brand-black"
-              }`}
-            >
-              <StoreIcon className="h-4 w-4" />
-              Shop Owner
-            </button>
+          {/* Customer Login Badge */}
+          <div className="mb-6 flex items-center justify-center gap-2 rounded-xl bg-brand-orange/10 py-3 text-xs font-bold uppercase tracking-wider text-brand-orange">
+            <UserIcon className="h-4 w-4" /> Customer Login
           </div>
 
           {success ? (

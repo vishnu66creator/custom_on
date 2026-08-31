@@ -33,8 +33,8 @@ function AboutPage() {
           </h1>
           <p className="mt-6 text-lg leading-relaxed text-brand-black/60">
             Custom On started in 2021 as a tiny screen-printing setup in a back-of-shop garage.
-            Today we partner with thousands of creators, indie brands, and teams across the world
-            to turn ideas into garments people actually love wearing.
+            Today we partner with thousands of creators, indie brands, and teams across the world to
+            turn ideas into garments people actually love wearing.
           </p>
         </div>
       </section>
@@ -44,8 +44,8 @@ function AboutPage() {
           <div className="rounded-3xl bg-brand-black p-12 text-white">
             <h2 className="font-display text-2xl font-extrabold uppercase">Mission</h2>
             <p className="mt-4 text-white/70">
-              Make premium custom apparel accessible to every creator — without the minimums,
-              setup fees, or 6-week timelines the industry treats as normal.
+              Make premium custom apparel accessible to every creator — without the minimums, setup
+              fees, or 6-week timelines the industry treats as normal.
             </p>
           </div>
           <div className="rounded-3xl bg-brand-gray p-12">
@@ -90,7 +90,10 @@ function AboutPage() {
                 body: "Email a designer, not a bot. Average reply time is under an hour.",
               },
             ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-brand-black/5 bg-white p-8">
+              <div
+                key={item.title}
+                className="rounded-2xl border border-brand-black/5 bg-white p-8"
+              >
                 <h3 className="text-sm font-bold uppercase tracking-widest text-brand-orange">
                   {item.title}
                 </h3>

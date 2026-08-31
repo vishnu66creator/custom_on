@@ -1,79 +1,141 @@
-import hoodie from "@/assets/product-hoodie.jpg";
-import tee from "@/assets/product-tee.jpg";
-import mug from "@/assets/product-mug.jpg";
-import polo from "@/assets/product-polo.jpg";
-import oversized from "@/assets/product-oversized.jpg";
+import { SIZE_MEDIA, type SizeMedia } from "./size-media";
 
-export type Category = "T-Shirts" | "Hoodies" | "Polo Shirts" | "Oversized" | "Mugs";
+export type Category = "T-Shirts" | "Hoodies";
 
 export type Product = {
   id: string;
   name: string;
   category: Category;
   price: number;
-  colors: string[]; // hex
+  colors: string[];
   sizes: string[];
+  /** Primary catalog image, kept for compatibility with custom products and existing DB rows. */
   image: string;
+  /** Explicit front/back media used by the Design Studio. */
+  frontImage?: string;
+  backImage?: string;
+  /** Transparent alpha masks used only for garment recoloring. */
+  frontMaskImage?: string;
+  backMaskImage?: string;
+  /** Optional exact media pair for each selectable garment size. */
+  sizeMedia?: Record<string, SizeMedia> | undefined;
   blurb: string;
 };
 
+export const ALL_APPAREL_COLORS = ["#0A0A0A", "#FFFFFF"];
+
+export const STANDARD_APPAREL_SIZES = ["S", "M", "L"];
+
+const product = (
+  details: Omit<Product, "image"> & { frontImage: string; backImage: string },
+): Product => ({
+  ...details,
+  image: details.frontImage,
+});
+
+/**
+ * The customer-facing catalog intentionally contains six apparel blanks only.
+ * Each default product owns a distinct front and back asset so dashboard cards,
+ * picker thumbnails, and the Design Studio all refer to the same product media.
+ */
 export const PRODUCTS: Product[] = [
-  {
-    id: "boxy-tee",
-    name: "Boxy Fit Heavyweight Tee",
+  product({
+    id: "regular-tee",
+    name: "Regular Fit T-Shirt",
     category: "T-Shirts",
-    price: 28,
-    colors: ["#0A0A0A", "#FFFFFF", "#FF5F1F", "#1F2A44"],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    image: tee,
-    blurb: "220 GSM combed cotton. Built to be printed.",
-  },
-  {
-    id: "essential-hoodie",
-    name: "The Essential Hoodie",
+    price: 25,
+    colors: ALL_APPAREL_COLORS,
+    sizes: STANDARD_APPAREL_SIZES,
+    frontImage: "/assets/size_catalog/regular-tee/m-front.png",
+    backImage: "/assets/size_catalog/regular-tee/m-back.png",
+    frontMaskImage: "/assets/size_catalog/regular-tee/m-front-mask.png",
+    backMaskImage: "/assets/size_catalog/regular-tee/m-back-mask.png",
+    sizeMedia: SIZE_MEDIA["regular-tee"],
+    blurb: "Classic everyday wear. 100% combed cotton blank built for custom prints.",
+  }),
+  product({
+    id: "oversized-tee",
+    name: "Oversized T-Shirt",
+    category: "T-Shirts",
+    price: 32,
+    colors: ALL_APPAREL_COLORS,
+    sizes: STANDARD_APPAREL_SIZES,
+    frontImage: "/assets/size_catalog/oversized-tee/m-front.png",
+    backImage: "/assets/size_catalog/oversized-tee/m-back.png",
+    frontMaskImage: "/assets/size_catalog/oversized-tee/m-front-mask.png",
+    backMaskImage: "/assets/size_catalog/oversized-tee/m-back-mask.png",
+    sizeMedia: SIZE_MEDIA["oversized-tee"],
+    blurb: "Modern streetwear cut with relaxed drop-shoulder drape and premium heavyweight finish.",
+  }),
+  product({
+    id: "polo-tee",
+    name: "Polo T-Shirt",
+    category: "T-Shirts",
+    price: 34,
+    colors: ALL_APPAREL_COLORS,
+    sizes: STANDARD_APPAREL_SIZES,
+    frontImage: "/assets/size_catalog/polo-tee/m-front.png",
+    backImage: "/assets/size_catalog/polo-tee/m-back.png",
+    frontMaskImage: "/assets/size_catalog/polo-tee/m-front-mask.png",
+    backMaskImage: "/assets/size_catalog/polo-tee/m-back-mask.png",
+    sizeMedia: SIZE_MEDIA["polo-tee"],
+    blurb: "Smart casual piqué knit featuring ribbed collar, button placket, and tailored fit.",
+  }),
+  product({
+    id: "full-sleeve-tee",
+    name: "Full-Sleeve T-Shirt",
+    category: "T-Shirts",
+    price: 30,
+    colors: ALL_APPAREL_COLORS,
+    sizes: STANDARD_APPAREL_SIZES,
+    frontImage: "/assets/size_catalog/full-sleeve-tee/m-front.png",
+    backImage: "/assets/size_catalog/full-sleeve-tee/m-back.png",
+    frontMaskImage: "/assets/size_catalog/full-sleeve-tee/m-front-mask.png",
+    backMaskImage: "/assets/size_catalog/full-sleeve-tee/m-back-mask.png",
+    sizeMedia: SIZE_MEDIA["full-sleeve-tee"],
+    blurb:
+      "Versatile long-sleeve T-shirt with ribbed cuffs, ideal for year-round layering and prints.",
+  }),
+  product({
+    id: "pullover-hoodie",
+    name: "Pullover Hoodie",
     category: "Hoodies",
     price: 45,
-    colors: ["#FFFFFF", "#0A0A0A", "#9CA3AF", "#FF5F1F"],
-    sizes: ["S", "M", "L", "XL"],
-    image: hoodie,
-    blurb: "Brushed fleece interior. 400 GSM heavyweight.",
-  },
-  {
-    id: "corporate-polo",
-    name: "Corporate Piqué Polo",
-    category: "Polo Shirts",
-    price: 34,
-    colors: ["#1F2A44", "#0A0A0A", "#FFFFFF", "#7F1D1D"],
-    sizes: ["S", "M", "L", "XL"],
-    image: polo,
-    blurb: "Classic pique knit. Ideal for team uniforms.",
-  },
-  {
-    id: "oversized-tee",
-    name: "Drop Shoulder Oversized Tee",
-    category: "Oversized",
-    price: 32,
-    colors: ["#F5EFE0", "#0A0A0A", "#FFFFFF"],
-    sizes: ["M", "L", "XL", "XXL"],
-    image: oversized,
-    blurb: "Streetwear cut. Drops perfectly off the shoulder.",
-  },
-  {
-    id: "studio-mug",
-    name: "The Studio Mug",
-    category: "Mugs",
-    price: 18,
-    colors: ["#FFFFFF", "#0A0A0A"],
-    sizes: ["11oz", "15oz"],
-    image: mug,
-    blurb: "Matte ceramic. Dishwasher safe full-color print.",
-  },
+    colors: ALL_APPAREL_COLORS,
+    sizes: STANDARD_APPAREL_SIZES,
+    frontImage: "/assets/size_catalog/pullover-hoodie/m-front.png",
+    backImage: "/assets/size_catalog/pullover-hoodie/m-back.png",
+    frontMaskImage: "/assets/size_catalog/pullover-hoodie/m-front-mask.png",
+    backMaskImage: "/assets/size_catalog/pullover-hoodie/m-back-mask.png",
+    sizeMedia: SIZE_MEDIA["pullover-hoodie"],
+    blurb:
+      "Heavyweight 400 GSM brushed fleece with double-lined hood and spacious kangaroo pocket.",
+  }),
+  product({
+    id: "zip-up-hoodie",
+    name: "Zip-Up Hoodie",
+    category: "Hoodies",
+    price: 48,
+    colors: ALL_APPAREL_COLORS,
+    sizes: STANDARD_APPAREL_SIZES,
+    frontImage: "/assets/size_catalog/zip-up-hoodie/m-front.png",
+    backImage: "/assets/size_catalog/zip-up-hoodie/m-back.png",
+    frontMaskImage: "/assets/size_catalog/zip-up-hoodie/m-front-mask.png",
+    backMaskImage: "/assets/size_catalog/zip-up-hoodie/m-back-mask.png",
+    sizeMedia: SIZE_MEDIA["zip-up-hoodie"],
+    blurb:
+      "Casual layering hoodie with full center metal zipper, split kangaroo pockets, and ribbed hem.",
+  }),
 ];
 
-export const CATEGORIES: Category[] = [
-  "T-Shirts",
-  "Hoodies",
-  "Polo Shirts",
-  "Oversized",
-  "Mugs",
-];
+export const CATEGORIES: Category[] = ["T-Shirts", "Hoodies"];
+
+export function getProductMedia(product: Product, side: "front" | "back", size?: string): string {
+  const selected = size ? product.sizeMedia?.[size] : undefined;
+  if (side === "front") return selected?.frontImage ?? product.frontImage ?? product.image;
+  return selected?.backImage ?? product.backImage ?? product.frontImage ?? product.image;
+}
+
+export function getDefaultProduct(productId: string): Product | undefined {
+  return PRODUCTS.find((item) => item.id === productId);
+}

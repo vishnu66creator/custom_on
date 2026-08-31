@@ -4,16 +4,16 @@ export function CustomCursor() {
   const [active, setActive] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [cursorText, setCursorText] = useState("");
-  
+
   // Real mouse coordinates
   const mouseRef = useRef({ x: 0, y: 0 });
-  
+
   // Animated follower coordinates (lerp)
   const followerRef = useRef({ x: 0, y: 0 });
-  
+
   // Ref for the follower DOM element
   const followerElementRef = useRef<HTMLDivElement>(null);
-  
+
   // Ref for the inner dot DOM element
   const dotElementRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +29,7 @@ export function CustomCursor() {
     const handleMouseMove = (e: MouseEvent) => {
       mouseRef.current.x = e.clientX;
       mouseRef.current.y = e.clientY;
-      
+
       // Instantly position the inner dot
       if (dotElementRef.current) {
         dotElementRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
@@ -48,8 +48,10 @@ export function CustomCursor() {
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      
-      const clickable = target.closest("a, button, [role='button'], [data-cursor], input, select, textarea");
+
+      const clickable = target.closest(
+        "a, button, [role='button'], [data-cursor], input, select, textarea",
+      );
       if (clickable) {
         setHovered(true);
         const text = clickable.getAttribute("data-cursor");
@@ -70,25 +72,25 @@ export function CustomCursor() {
     const tick = () => {
       const targetX = mouseRef.current.x;
       const targetY = mouseRef.current.y;
-      
+
       const currentX = followerRef.current.x;
       const currentY = followerRef.current.y;
-      
+
       // Lerp logic: current = current + (target - current) * factor
       // factor 0.12 gives a premium sluggish/elastic lag
       const nextX = currentX + (targetX - currentX) * 0.12;
       const nextY = currentY + (targetY - currentY) * 0.12;
-      
+
       followerRef.current.x = nextX;
       followerRef.current.y = nextY;
-      
+
       if (followerElementRef.current) {
         followerElementRef.current.style.transform = `translate3d(${nextX}px, ${nextY}px, 0)`;
       }
-      
+
       animationFrameId = requestAnimationFrame(tick);
     };
-    
+
     animationFrameId = requestAnimationFrame(tick);
 
     return () => {
@@ -111,14 +113,12 @@ export function CustomCursor() {
         className="pointer-events-none fixed left-0 top-0 z-[100] size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-orange mix-blend-difference transition-transform duration-200"
         style={{ transform: "translate3d(-100px, -100px, 0)" }}
       />
-      
+
       {/* Outer Follower Circle */}
       <div
         ref={followerElementRef}
         className={`pointer-events-none fixed left-0 top-0 z-[99] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-brand-orange/40 bg-transparent transition-all duration-300 ${
-          hovered 
-            ? "size-14 border-brand-orange bg-brand-orange/10 mix-blend-normal" 
-            : "size-8"
+          hovered ? "size-14 border-brand-orange bg-brand-orange/10 mix-blend-normal" : "size-8"
         }`}
         style={{ transform: "translate3d(-100px, -100px, 0)" }}
       >

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-shell";
 import { PRODUCTS, type Product } from "@/lib/products";
-import { getProducts } from "@/lib/products-store";
+import { getProducts, getProductsAsync } from "@/lib/products-store";
 import { useAuth } from "@/lib/auth";
 import heroTee from "@/assets/hero-tee.jpg";
 import teeFront from "@/assets/tee-front.png";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Premium custom T-shirt printing. Design tees, hoodies, polos and mugs in the Custom On Design Studio and we'll print and ship.",
+          "Premium custom apparel printing. Design T-shirts, hoodies, and polos in the Custom On Design Studio and we'll print and ship.",
       },
       { property: "og:title", content: "Custom On — Wear Your Creativity" },
       {
@@ -32,7 +32,7 @@ const TESTIMONIALS = [
     name: "Maya Okafor",
     role: "Founder, Studio Nine",
     quote:
-      "The print quality is unreal. We ordered 80 launch tees for our team and every single one looked like a designer drop.",
+      "The print quality is unreal. We ordered 80 launch T-shirts for our team and every single one looked like a designer drop.",
   },
   {
     name: "Daniel Reyes",
@@ -44,16 +44,24 @@ const TESTIMONIALS = [
     name: "Priya Shah",
     role: "Run Club Captain",
     quote:
-      "Bulk pricing was the best I found, and the heavyweight tees feel premium. The team has been wearing them every week.",
+      "Bulk pricing was the best I found, and the heavyweight T-shirts feel premium. The team has been wearing them every week.",
   },
 ];
 
 function HomePage() {
   const { user } = useAuth();
-  const [featured, setFeatured] = useState<Product[]>(PRODUCTS.slice(0, 4));
+  const [featured, setFeatured] = useState<Product[]>(getProducts().slice(0, 4));
 
   useEffect(() => {
-    setFeatured(getProducts().slice(0, 4));
+    let active = true;
+    getProductsAsync().then((prods) => {
+      if (active) {
+        setFeatured(prods.slice(0, 4));
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // 1. Hero 3D Tilt State
@@ -69,7 +77,7 @@ function HomePage() {
     const rY = (mouseX / (width / 2)) * 12;
     setTilt({ x: rX, y: rY });
   };
-  
+
   const handleHeroMouseLeave = () => {
     setTilt({ x: 0, y: 0 });
   };
@@ -103,7 +111,6 @@ function HomePage() {
     <PageShell>
       {/* Immersive Hero Section */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden border-b border-brand-black/5 dark:border-white/5 py-12 lg:py-24">
-        
         <div className="mx-auto w-full max-w-7xl px-6 relative z-10 grid items-center gap-16 lg:grid-cols-12">
           {/* Hero Left Content */}
           <div className="lg:col-span-7 flex flex-col items-start justify-center">
@@ -117,7 +124,7 @@ function HomePage() {
               CANVAS.
             </h1>
             <p className="mb-10 max-w-lg text-lg leading-relaxed text-brand-black/60 dark:text-white/60">
-              Ethically sourced heavyweight garments crafted as a blank canvas for your design. 
+              Ethically sourced heavyweight garments crafted as a blank canvas for your design.
               Real-time 3D live feedback custom printing studio.
             </p>
             <div className="flex flex-wrap items-center gap-6">
@@ -149,30 +156,30 @@ function HomePage() {
               </Link>
             </div>
           </div>
-          
+
           {/* Hero Right Motion-Reactive Shirt Display */}
-          <div 
+          <div
             className="lg:col-span-5 flex justify-center items-center"
             onMouseMove={handleHeroMouseMove}
             onMouseLeave={handleHeroMouseLeave}
           >
-            <div 
+            <div
               className="relative w-full max-w-[450px] aspect-[4/5] rounded-3xl border border-brand-black/10 dark:border-white/10 bg-neutral-50 dark:bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl flex items-center justify-center overflow-hidden group tilt-wrapper"
               style={{
                 transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(1.02)`,
-                transition: "transform 0.15s ease-out"
+                transition: "transform 0.15s ease-out",
               }}
             >
               {/* Inner ambient glow inside the card */}
               <div className="absolute inset-0 bg-gradient-to-tr from-brand-orange/5 to-transparent pointer-events-none" />
-              
+
               <img
                 src={heroTee}
                 alt="Premium oversized black t-shirt preview"
                 className="h-[85%] w-auto object-contain transition-transform duration-500 group-hover:scale-105"
                 loading="eager"
               />
-              
+
               {/* Monospace floating detail overlays */}
               <div className="absolute top-6 left-6 font-mono text-[9px] uppercase tracking-wider opacity-60">
                 Studio // V1.0
@@ -181,7 +188,9 @@ function HomePage() {
                 ● Live Model
               </div>
               <div className="absolute bottom-6 left-6 max-w-[200px]">
-                <p className="text-[10px] font-bold uppercase tracking-widest">3D Realtime Preview</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest">
+                  3D Realtime Preview
+                </p>
                 <p className="text-[9px] leading-relaxed text-brand-black/40 dark:text-white/40 mt-1">
                   Interact with real-time vector uploads and textures on premium cotton.
                 </p>
@@ -212,18 +221,20 @@ function HomePage() {
                 body: "Printed using water-based, eco-certified inks and dispatched to your door in 48h.",
               },
             ].map((step, idx) => (
-              <div 
-                key={step.n} 
+              <div
+                key={step.n}
                 className="group p-12 lg:p-16 border-b md:border-b-0 md:border-r border-white/5 last:border-0 hover:bg-white/[0.02] transition-all duration-500 relative"
               >
                 <span className="block font-mono text-8xl font-black text-white/5 transition-colors duration-500 group-hover:text-brand-orange/20">
                   {step.n}
                 </span>
-                <h3 className="mb-3 mt-6 text-lg font-bold uppercase tracking-widest">{step.title}</h3>
+                <h3 className="mb-3 mt-6 text-lg font-bold uppercase tracking-widest">
+                  {step.title}
+                </h3>
                 <p className="text-sm leading-relaxed text-white/40 group-hover:text-white/60 transition-colors duration-300">
                   {step.body}
                 </p>
-                
+
                 {/* Thin overlay line on hover */}
                 <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-orange transition-all duration-500 group-hover:w-full" />
               </div>
@@ -252,7 +263,7 @@ function HomePage() {
               <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Link>
           </div>
-          
+
           {/* Draggable Row */}
           <div
             ref={scrollContainerRef}
@@ -265,8 +276,8 @@ function HomePage() {
             style={{ scrollbarWidth: "none" }}
           >
             {featured.map((p) => (
-              <div 
-                key={p.id} 
+              <div
+                key={p.id}
                 className="min-w-[280px] sm:min-w-[320px] max-w-[320px] group flex-shrink-0"
               >
                 <div className="mb-5 aspect-[4/5] w-full overflow-hidden rounded-2xl border border-brand-black/5 dark:border-white/5 bg-brand-gray dark:bg-zinc-900/50 relative p-4 flex items-center justify-center unseen-card">
@@ -277,13 +288,13 @@ function HomePage() {
                     draggable="false"
                     className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none"
                   />
-                  
+
                   {/* Floating pricing badge */}
                   <div className="absolute top-4 right-4 bg-brand-black dark:bg-white text-white dark:text-brand-black font-mono text-[10px] font-bold px-2.5 py-1 rounded">
                     ${p.price.toFixed(2)}
                   </div>
                 </div>
-                
+
                 <div className="flex items-start justify-between gap-4 px-1">
                   <div>
                     <h4 className="font-bold uppercase tracking-wide text-sm">{p.name}</h4>
@@ -308,7 +319,6 @@ function HomePage() {
       {/* Pro Studio Splitting Teaser */}
       <section className="px-6 py-24 bg-brand-gray dark:bg-zinc-950 border-b border-brand-black/5 dark:border-white/5">
         <div className="mx-auto max-w-7xl flex flex-col overflow-hidden rounded-3xl border border-brand-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 shadow-2xl lg:flex-row">
-          
           {/* Interactive Shirt design mockup */}
           <div className="relative flex min-h-[500px] items-center justify-center bg-neutral-100 dark:bg-zinc-900/80 p-8 lg:w-2/3 border-b lg:border-b-0 lg:border-r border-brand-black/5 dark:border-white/5">
             <div className="absolute left-6 top-6 flex gap-2">
@@ -316,8 +326,8 @@ function HomePage() {
               <div className="size-3 rounded-full bg-yellow-400/80" />
               <div className="size-3 rounded-full bg-green-400/80" />
             </div>
-            
-            <div 
+
+            <div
               data-cursor="EDIT"
               className="grid aspect-square w-full max-w-lg place-items-center rounded-2xl bg-white dark:bg-zinc-950 p-8 shadow-lg hover:rotate-1 transition-transform duration-500 border border-brand-black/5 dark:border-white/5"
             >
@@ -329,7 +339,7 @@ function HomePage() {
               />
             </div>
           </div>
-          
+
           {/* Teaser right content */}
           <div className="flex flex-col justify-center p-12 lg:p-16 lg:w-1/3">
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-orange">
@@ -338,7 +348,7 @@ function HomePage() {
             <h2 className="mt-2 mb-6 font-display text-3xl font-extrabold uppercase tracking-tight">
               Pro Design Studio
             </h2>
-            
+
             <ul className="mb-10 space-y-4 text-xs font-semibold">
               {[
                 "High-Res Vector SVG & Raster PNG uploads",
@@ -353,7 +363,7 @@ function HomePage() {
                 </li>
               ))}
             </ul>
-            
+
             <Link
               to="/studio"
               className="block w-full bg-brand-black dark:bg-white text-white dark:text-brand-black py-4.5 text-center font-bold uppercase tracking-widest transition-all hover:bg-brand-orange hover:text-white dark:hover:bg-brand-orange dark:hover:text-white"
@@ -375,7 +385,7 @@ function HomePage() {
               Loved by Creators
             </h2>
           </div>
-          
+
           <div className="grid gap-8 md:grid-cols-3">
             {TESTIMONIALS.map((t, idx) => (
               <figure
@@ -387,15 +397,17 @@ function HomePage() {
                     <Star key={i} className="h-4 w-4 fill-current" />
                   ))}
                 </div>
-                
+
                 <blockquote className="text-base leading-relaxed text-brand-black/80 dark:text-white/80 italic">
                   &ldquo;{t.quote}&rdquo;
                 </blockquote>
-                
+
                 <figcaption className="mt-auto pt-6 border-t border-brand-black/5 dark:border-white/5 flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold uppercase tracking-wider">{t.name}</div>
-                    <div className="text-[10px] text-brand-black/40 dark:text-white/40 uppercase tracking-widest mt-0.5">{t.role}</div>
+                    <div className="text-[10px] text-brand-black/40 dark:text-white/40 uppercase tracking-widest mt-0.5">
+                      {t.role}
+                    </div>
                   </div>
                   <span className="font-mono text-xs text-brand-orange/40">0{idx + 1}</span>
                 </figcaption>

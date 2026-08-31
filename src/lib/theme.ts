@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { updateCustomerTheme } from "./db/app-service";
 
 export function getTheme(): "light" | "dark" {
   if (typeof window === "undefined") return "light";
@@ -8,7 +9,9 @@ export function getTheme(): "light" | "dark" {
 export function toggleTheme(): "light" | "dark" {
   if (typeof window === "undefined") return "light";
   const isDark = document.documentElement.classList.toggle("dark");
-  localStorage.setItem("customon:theme", isDark ? "dark" : "light");
+  void updateCustomerTheme({ data: { theme: isDark ? "dark" : "light" } }).catch(() => {
+    // Anonymous visitors can still use the theme for the current session.
+  });
   window.dispatchEvent(new Event("customon:theme-change"));
   return isDark ? "dark" : "light";
 }

@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../lib/auth";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -82,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Custom On is a premium custom T-shirt printing studio. Design your own tees, hoodies, polos, and mugs in our studio and have them printed and shipped fast.",
+          "Custom On is a premium custom apparel printing studio. Design your own T-shirts, hoodies, and polos in our studio and have them printed and shipped fast.",
       },
       { property: "og:title", content: "Custom On — Wear Your Creativity" },
       {
@@ -99,7 +100,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alex+Brush&family=Allura&family=Bebas+Neue&family=Bungee&family=Caveat:wght@600;700&family=Cinzel:wght@700;900&family=Dancing+Script:wght@600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Kaushan+Script&family=Monoton&family=Orbitron:wght@700;900&family=Pacifico&family=Permanent+Marker&family=Pirata+One&family=Playfair+Display:ital,wght@1,700&family=Plus+Jakarta+Sans:wght@500;700;800&family=Press+Start+2P&family=Righteous&family=Rubik+Glitch&family=Russo+One&family=Sacramento&family=Satisfy&family=Syne:wght@700;800&family=UnifrakturMaguntia&display=swap",
       },
     ],
   }),
@@ -114,6 +115,11 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => { try { const dark = window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.classList.toggle("dark", dark); } catch (_) {} })();`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -128,8 +134,7 @@ function RootComponent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const theme = localStorage.getItem("customon:theme");
-    if (theme === "dark" || (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
@@ -140,6 +145,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );

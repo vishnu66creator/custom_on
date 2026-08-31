@@ -1,12 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
-import { PRODUCTS, CATEGORIES, type Category, type Product } from "@/lib/products";
+import {
+  CATEGORIES,
+  ALL_APPAREL_COLORS,
+  STANDARD_APPAREL_SIZES,
+  type Category,
+  type Product,
+} from "@/lib/products";
 import { useAuth } from "../lib/auth";
-import { getProducts, saveCustomProduct } from "../lib/products-store";
+import { getProducts, getProductsAsync } from "../lib/products-store";
 import { Search, Heart, Star, X } from "lucide-react";
 import { getWishlistProducts, toggleProductWishlist } from "@/lib/wishlist-store";
 import { getReviews, addReview, getRatingSummary, type Review } from "@/lib/reviews-store";
+import { GarmentImage } from "@/lib/garments";
 
 export const Route = createFileRoute("/products")({
   head: () => ({
@@ -15,7 +22,7 @@ export const Route = createFileRoute("/products")({
       {
         name: "description",
         content:
-          "Browse premium custom T-shirts, hoodies, polos, oversized tees, and mugs. Filter by category, size, color, and price.",
+          "Browse premium custom T-shirts, hoodies, polos, and oversized T-shirts. Filter by category, size, color, and price.",
       },
       { property: "og:title", content: "Shop Custom Apparel — Custom On" },
       {
@@ -27,58 +34,73 @@ export const Route = createFileRoute("/products")({
   component: ProductsPage,
 });
 
-const ALL_SIZES = ["S", "M", "L", "XL", "XXL", "11oz", "15oz"];
-const ALL_COLORS = ["#0A0A0A", "#FFFFFF", "#FF5F1F", "#1F2A44", "#F5EFE0", "#9CA3AF", "#7F1D1D"];
+const ALL_SIZES = STANDARD_APPAREL_SIZES;
+const ALL_COLORS = ALL_APPAREL_COLORS;
 
 function ProductsPage() {
   const { user } = useAuth();
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>(PRODUCTS);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(getProducts());
   const [category, setCategory] = useState<Category | "All">("All");
 
   useEffect(() => {
-    setCatalogProducts(getProducts());
+    getProductsAsync().then((prods) => {
+      setCatalogProducts(prods);
+    });
   }, []);
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [maxPrice, setMaxPrice] = useState(60);
-  const [name, setName] = useState("");
-  const [productCategory, setProductCategory] = useState<Category>("T-Shirts");
-  const [price, setPrice] = useState("28");
-  const [blurb, setBlurb] = useState("");
-  const [image, setImage] = useState("");
-  const [colors, setColors] = useState("#0A0A0A, #FFFFFF");
-  const [sizes, setSizes] = useState("S, M, L");
-  const [successMessage, setSuccessMessage] = useState("");
-
   // Search & Sorting States
+  type SortMode = "featured" | "price-asc" | "price-desc" | "name";
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"featured" | "price-asc" | "price-desc" | "name">("featured");
+  const [sortBy, setSortBy] = useState<SortMode>("featured");
+  const [ratingSummaries, setRatingSummaries] = useState<
+    Record<string, { average: number; count: number }>
+  >({});
 
-  // Wishlist state (local storage backed)
+  useEffect(() => {
+    Promise.all(
+      catalogProducts.map(
+        async (product) => [product.id, await getRatingSummary(product.id)] as const,
+      ),
+    )
+      .then((entries) => setRatingSummaries(Object.fromEntries(entries)))
+      .catch((error) => console.error("Failed to load rating summaries", error));
+  }, [catalogProducts]);
+
   const [wishlistedIds, setWishlistedIds] = useState<string[]>([]);
   useEffect(() => {
-    setWishlistedIds(getWishlistProducts());
-  }, []);
+    if (!user) return;
+    getWishlistProducts()
+      .then(setWishlistedIds)
+      .catch((error) => console.error("Failed to load wishlist", error));
+  }, [user]);
 
-  const handleToggleWishlist = (e: React.MouseEvent, productId: string) => {
+  const handleToggleWishlist = async (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleProductWishlist(productId);
-    setWishlistedIds(getWishlistProducts());
+    if (!user) return;
+    try {
+      await toggleProductWishlist(productId);
+      setWishlistedIds(await getWishlistProducts());
+    } catch (error) {
+      console.error("Failed to update wishlist", error);
+    }
   };
 
   // Details Modal State
   const [selectedDetailsProduct, setSelectedDetailsProduct] = useState<Product | null>(null);
 
   const filtered = useMemo(() => {
-    let result = catalogProducts
+    const result = catalogProducts
       .filter((p) => category === "All" || p.category === category)
       .filter((p) => !size || p.sizes.includes(size))
       .filter((p) => !color || p.colors.includes(color))
       .filter((p) => p.price <= maxPrice)
-      .filter((p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.blurb.toLowerCase().includes(searchQuery.toLowerCase())
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.blurb.toLowerCase().includes(searchQuery.toLowerCase()),
       );
 
     if (sortBy === "price-asc") {
@@ -91,47 +113,6 @@ function ProductsPage() {
     return result;
   }, [catalogProducts, category, size, color, maxPrice, searchQuery, sortBy]);
 
-  const handleAddProduct = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setSuccessMessage("Please add a product name before saving.");
-      return;
-    }
-
-    const parsedColors = colors
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const parsedSizes = sizes
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-    const newProduct: Product = {
-      id: `${trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now()}`,
-      name: trimmedName,
-      category: productCategory,
-      price: Number(price) || 0,
-      colors: parsedColors.length > 0 ? parsedColors : ["#0A0A0A"],
-      sizes: parsedSizes.length > 0 ? parsedSizes : ["S"],
-      image: image.trim() || catalogProducts[0]?.image || PRODUCTS[0].image,
-      blurb: blurb.trim() || "Added by the owner from the admin form.",
-    };
-
-    saveCustomProduct(newProduct);
-    setCatalogProducts((current) => [newProduct, ...current]);
-    setName("");
-    setProductCategory("T-Shirts");
-    setPrice("28");
-    setBlurb("");
-    setImage("");
-    setColors("#0A0A0A, #FFFFFF");
-    setSizes("S, M, L");
-    setSuccessMessage(`${newProduct.name} was added to the catalog.`);
-  };
-
   return (
     <PageShell>
       <section className="border-b border-brand-black/5 px-6 py-16">
@@ -143,8 +124,7 @@ function ProductsPage() {
             Shop Premium Blanks
           </h1>
           <p className="mt-4 max-w-xl text-brand-black/60">
-            Every product is print-ready and pairs with our Design Studio for instant
-            customization.
+            Every product is print-ready and pairs with our Design Studio for instant customization.
           </p>
         </div>
       </section>
@@ -160,7 +140,8 @@ function ProductsPage() {
                 Welcome back, {user.username}!
               </h3>
               <p className="mx-auto mt-2 max-w-sm text-sm text-brand-black/60">
-                You are logged in as a Shop Owner. Use the unified admin dashboard to manage orders, catalog blank products, and reference designs.
+                You are logged in as a Shop Owner. Use the unified admin dashboard to manage orders,
+                catalog blank products, and reference designs.
               </p>
               <Link
                 to="/dashboard"
@@ -195,7 +176,9 @@ function ProductsPage() {
                     type="button"
                     onClick={() => setCategory(c)}
                     className={`block w-full text-left text-sm transition-colors ${
-                      category === c ? "font-bold text-brand-orange" : "text-brand-black/70 hover:text-brand-black"
+                      category === c
+                        ? "font-bold text-brand-orange"
+                        : "text-brand-black/70 hover:text-brand-black"
                     }`}
                   >
                     {c}
@@ -260,10 +243,12 @@ function ProductsPage() {
                   Showing {filtered.length} products
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-brand-black/40">Sort By:</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-brand-black/40">
+                    Sort By:
+                  </span>
                   <select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => setSortBy(e.target.value as SortMode)}
                     className="rounded-lg border border-brand-black/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider outline-none focus:border-brand-orange bg-white"
                   >
                     <option value="featured">Featured</option>
@@ -281,7 +266,7 @@ function ProductsPage() {
               ) : (
                 <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {filtered.map((p) => {
-                    const ratingSummary = getRatingSummary(p.id);
+                    const ratingSummary = ratingSummaries[p.id] ?? { average: 5, count: 0 };
                     const isWishlisted = wishlistedIds.includes(p.id);
                     return (
                       <article
@@ -290,13 +275,10 @@ function ProductsPage() {
                         className="group cursor-pointer"
                       >
                         <div className="mb-4 aspect-[4/5] overflow-hidden rounded-lg bg-brand-gray relative">
-                          <img
-                            src={p.image}
-                            alt={p.name}
-                            width={800}
-                            height={1000}
-                            loading="lazy"
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          <GarmentImage
+                            product={p}
+                            side="front"
+                            className="h-full w-full transition-transform duration-500 group-hover:scale-105"
                           />
                           {/* Heart wish overlay */}
                           {user?.role !== "shop-owner" && (
@@ -307,7 +289,9 @@ function ProductsPage() {
                             >
                               <Heart
                                 className={`h-4 w-4 transition-colors ${
-                                  isWishlisted ? "fill-red-500 text-red-500" : "text-brand-black/40 hover:text-red-500"
+                                  isWishlisted
+                                    ? "fill-red-500 text-red-500"
+                                    : "text-brand-black/40 hover:text-red-500"
                                 }`}
                               />
                             </button>
@@ -329,7 +313,9 @@ function ProductsPage() {
                           </div>
                           <span className="shrink-0 font-bold text-sm">${p.price}</span>
                         </div>
-                        <p className="mt-2 text-xs text-brand-black/50 leading-relaxed truncate">{p.blurb}</p>
+                        <p className="mt-2 text-xs text-brand-black/50 leading-relaxed truncate">
+                          {p.blurb}
+                        </p>
                         <div className="mt-3 flex items-center gap-2">
                           {p.colors.slice(0, 4).map((c) => (
                             <span
@@ -400,7 +386,12 @@ interface ProductDetailsModalProps {
   onToggleWishlist: (e: React.MouseEvent) => void;
 }
 
-function ProductDetailsModal({ product, onClose, wishlisted, onToggleWishlist }: ProductDetailsModalProps) {
+function ProductDetailsModal({
+  product,
+  onClose,
+  wishlisted,
+  onToggleWishlist,
+}: ProductDetailsModalProps) {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [author, setAuthor] = useState("");
@@ -409,17 +400,25 @@ function ProductDetailsModal({ product, onClose, wishlisted, onToggleWishlist }:
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    setReviews(getReviews(product.id));
+    getReviews(product.id)
+      .then(setReviews)
+      .catch((error) => console.error("Failed to load reviews", error));
   }, [product.id]);
 
-  const ratingSummary = getRatingSummary(product.id);
+  const [ratingSummary, setRatingSummary] = useState({ average: 5, count: 0 });
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  useEffect(() => {
+    getRatingSummary(product.id)
+      .then(setRatingSummary)
+      .catch((error) => console.error("Failed to load rating summary", error));
+  }, [product.id]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) return;
 
-    addReview(product.id, author, rating, comment);
-    setReviews(getReviews(product.id));
+    await addReview(product.id, author, rating, comment);
+    setReviews(await getReviews(product.id));
     setAuthor("");
     setRating(5);
     setComment("");
@@ -432,13 +431,19 @@ function ProductDetailsModal({ product, onClose, wishlisted, onToggleWishlist }:
       <div className="relative w-full max-w-4xl rounded-3xl border border-brand-black/5 bg-white shadow-2xl overflow-hidden max-h-[90vh] flex flex-col md:flex-row animate-fade-in">
         {/* Left: Product Image */}
         <div className="md:w-1/2 bg-brand-gray relative flex items-center justify-center p-6 shrink-0">
-          <img src={product.image} alt={product.name} className="max-h-[300px] md:max-h-[440px] object-contain rounded-2xl" />
+          <img
+            src={product.image}
+            alt={product.name}
+            className="max-h-[300px] md:max-h-[440px] object-contain rounded-2xl"
+          />
           <button
             type="button"
             onClick={onToggleWishlist}
             className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white shadow-md transition hover:scale-105"
           >
-            <Heart className={`h-5 w-5 ${wishlisted ? "fill-red-500 text-red-500" : "text-brand-black/40"}`} />
+            <Heart
+              className={`h-5 w-5 ${wishlisted ? "fill-red-500 text-red-500" : "text-brand-black/40"}`}
+            />
           </button>
         </div>
 
@@ -454,19 +459,26 @@ function ProductDetailsModal({ product, onClose, wishlisted, onToggleWishlist }:
                   {product.name}
                 </h2>
               </div>
-              <button onClick={onClose} className="rounded-full bg-brand-gray p-2 hover:bg-brand-black/5">
+              <button
+                onClick={onClose}
+                className="rounded-full bg-brand-gray p-2 hover:bg-brand-black/5"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mt-4 flex items-center gap-3">
-              <span className="text-xl font-extrabold text-brand-black">${product.price.toFixed(2)}</span>
+              <span className="text-xl font-extrabold text-brand-black">
+                ${product.price.toFixed(2)}
+              </span>
               <div className="flex items-center text-amber-500">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star
                     key={s}
                     className={`h-4 w-4 ${
-                      s <= Math.round(ratingSummary.average) ? "fill-current" : "text-brand-black/15"
+                      s <= Math.round(ratingSummary.average)
+                        ? "fill-current"
+                        : "text-brand-black/15"
                     }`}
                   />
                 ))}
@@ -480,7 +492,10 @@ function ProductDetailsModal({ product, onClose, wishlisted, onToggleWishlist }:
 
             <div className="mt-6 flex flex-wrap gap-2">
               {product.sizes.map((s) => (
-                <span key={s} className="rounded-lg bg-brand-gray px-3 py-1.5 text-xs font-bold text-brand-black/70">
+                <span
+                  key={s}
+                  className="rounded-lg bg-brand-gray px-3 py-1.5 text-xs font-bold text-brand-black/70"
+                >
                   {s}
                 </span>
               ))}
@@ -511,74 +526,99 @@ function ProductDetailsModal({ product, onClose, wishlisted, onToggleWishlist }:
 
               <div className="space-y-4">
                 {reviews.map((rev) => (
-                  <div key={rev.id} className="rounded-2xl bg-brand-gray/30 p-4 border border-brand-black/5">
+                  <div
+                    key={rev.id}
+                    className="rounded-2xl bg-brand-gray/30 p-4 border border-brand-black/5"
+                  >
                     <div className="flex justify-between items-start">
                       <span className="text-xs font-bold text-brand-black">{rev.author}</span>
-                      <span className="text-[10px] text-brand-black/40">{new Date(rev.date).toLocaleDateString()}</span>
+                      <span className="text-[10px] text-brand-black/40">
+                        {new Date(rev.date).toLocaleDateString()}
+                      </span>
                     </div>
                     <div className="flex items-center text-amber-500 mt-1">
                       {[1, 2, 3, 4, 5].map((s) => (
-                        <Star key={s} className={`h-3 w-3 ${s <= rev.rating ? "fill-current" : "text-brand-black/10"}`} />
+                        <Star
+                          key={s}
+                          className={`h-3 w-3 ${s <= rev.rating ? "fill-current" : "text-brand-black/10"}`}
+                        />
                       ))}
                     </div>
-                    <p className="mt-2 text-xs text-brand-black/60 leading-relaxed">{rev.comment}</p>
+                    <p className="mt-2 text-xs text-brand-black/60 leading-relaxed">
+                      {rev.comment}
+                    </p>
                   </div>
                 ))}
               </div>
 
               {/* Write Review Form */}
               {user?.role !== "shop-owner" && (
-                <form onSubmit={handleSubmitReview} className="pt-6 border-t border-brand-black/5 space-y-4">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-brand-black">Write a Review</h4>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <form
+                  onSubmit={handleSubmitReview}
+                  className="pt-6 border-t border-brand-black/5 space-y-4"
+                >
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-brand-black">
+                    Write a Review
+                  </h4>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">
+                        Your Name
+                      </span>
+                      <input
+                        value={author}
+                        onChange={(e) => setAuthor(e.target.value)}
+                        placeholder="Jane Doe"
+                        className="w-full rounded-xl border border-brand-black/10 px-3 py-2 text-xs outline-none focus:border-brand-orange mt-1"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60 font-bold">
+                        Rating
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-2.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setRating(s)}
+                            className="text-amber-500 transition hover:scale-110"
+                          >
+                            <Star
+                              className={`h-5 w-5 ${s <= rating ? "fill-current" : "text-brand-black/20"}`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </label>
+                  </div>
                   <label className="block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">Your Name</span>
-                    <input
-                      value={author}
-                      onChange={(e) => setAuthor(e.target.value)}
-                      placeholder="Jane Doe"
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">
+                      Review Details
+                    </span>
+                    <textarea
+                      required
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Tell us what you liked or disliked..."
+                      rows={3}
                       className="w-full rounded-xl border border-brand-black/10 px-3 py-2 text-xs outline-none focus:border-brand-orange mt-1"
                     />
                   </label>
-                  <label className="block">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60 font-bold">Rating</span>
-                    <div className="flex items-center gap-1.5 mt-2.5">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setRating(s)}
-                          className="text-amber-500 transition hover:scale-110"
-                        >
-                          <Star className={`h-5 w-5 ${s <= rating ? "fill-current" : "text-brand-black/20"}`} />
-                        </button>
-                      ))}
-                    </div>
-                  </label>
-                </div>
-                <label className="block">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60">Review Details</span>
-                  <textarea
-                    required
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Tell us what you liked or disliked..."
-                    rows={3}
-                    className="w-full rounded-xl border border-brand-black/10 px-3 py-2 text-xs outline-none focus:border-brand-orange mt-1"
-                  />
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="submit"
-                    className="bg-brand-black text-white px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-brand-orange"
-                  >
-                    Submit Review
-                  </button>
-                  {success && (
-                    <span className="text-xs font-bold text-green-600">Review posted! Thank you.</span>
-                  )}
-                </div>
-              </form>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="submit"
+                      className="bg-brand-black text-white px-5 py-2 text-xs font-bold uppercase tracking-widest hover:bg-brand-orange"
+                    >
+                      Submit Review
+                    </button>
+                    {success && (
+                      <span className="text-xs font-bold text-green-600">
+                        Review posted! Thank you.
+                      </span>
+                    )}
+                  </div>
+                </form>
               )}
             </div>
           </div>

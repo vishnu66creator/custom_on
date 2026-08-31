@@ -1,0 +1,194 @@
+{
+  "regular-tee": {
+    "S": {
+      "front": {
+        "image": "/assets/size_catalog/regular-tee/s-front.png",
+        "mask": "/assets/size_catalog/regular-tee/s-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/regular-tee/s-back.png",
+        "mask": "/assets/size_catalog/regular-tee/s-back-mask.png"
+      }
+    },
+    "M": {
+      "front": {
+        "image": "/assets/size_catalog/regular-tee/m-front.png",
+        "mask": "/assets/size_catalog/regular-tee/m-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/regular-tee/m-back.png",
+        "mask": "/assets/size_catalog/regular-tee/m-back-mask.png"
+      }
+    },
+    "L": {
+      "front": {
+        "image": "/assets/size_catalog/regular-tee/l-front.png",
+        "mask": "/assets/size_catalog/regular-tee/l-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/regular-tee/l-back.png",
+        "mask": "/assets/size_catalog/regular-tee/l-back-mask.png"
+      }
+    }
+  },
+  "oversized-tee": {
+    "S": {
+      "front": {
+        "image": "/assets/size_catalog/oversized-tee/s-front.png",
+        "mask": "/assets/size_catalog/oversized-tee/s-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/oversized-tee/s-back.png",
+        "mask": "/assets/size_catalog/oversized-tee/s-back-mask.png"
+      }
+    },
+    "M": {
+      "front": {
+        "image": "/assets/size_catalog/oversized-tee/m-front.png",
+        "mask": "/assets/size_catalog/oversized-tee/m-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/oversized-tee/m-back.png",
+        "mask": "/assets/size_catalog/oversized-tee/m-back-mask.png"
+      }
+    },
+    "L": {
+      "front": {
+        "image": "/assets/size_catalog/oversized-tee/l-front.png",
+        "mask": "/assets/size_catalog/oversized-tee/l-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/oversized-tee/l-back.png",
+        "mask": "/assets/size_catalog/oversized-tee/l-back-mask.png"
+      }
+    }
+  },
+  "polo-tee": {
+    "S": {
+      "front": {
+        "image": "/assets/size_catalog/polo-tee/s-front.png",
+        "mask": "/assets/size_catalog/polo-tee/s-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/polo-tee/s-back.png",
+        "mask": "/assets/size_catalog/polo-tee/s-back-mask.png"
+      }
+    },
+    "M": {
+      "front": {
+        "image": "/assets/size_catalog/polo-tee/m-front.png",
+        "mask": "/assets/size_catalog/polo-tee/m-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/polo-tee/m-back.png",
+        "mask": "/assets/size_catalog/polo-tee/m-back-mask.png"
+      }
+    },
+    "L": {
+      "front": {
+        "image": "/assets/size_catalog/polo-tee/l-front.png",
+        "mask": "/assets/size_catalog/polo-tee/l-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/polo-tee/l-back.png",
+        "mask": "/assets/size_catalog/polo-tee/l-back-mask.png"
+      }
+    }
+  },
+  "full-sleeve-tee": {
+    "S": {
+      "front": {
+        "image": "/assets/size_catalog/full-sleeve-tee/s-front.png",
+        "mask": "/assets/size_catalog/full-sleeve-tee/s-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/full-sleeve-tee/s-back.png",
+        "mask": "/assets/size_catalog/full-sleeve-tee/s-back-mask.png"
+      }
+    },
+    "M": {
+      "front": {
+        "image": "/assets/size_catalog/full-sleeve-tee/m-front.png",
+        "mask": "/assets/size_catalog/full-sleeve-tee/m-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/full-sleeve-tee/m-back.png",
+        "mask": "/assets/size_catalog/full-sleeve-tee/m-back-mask.png"
+      }
+    },
+    "L": {
+      "front": {
+        "image": "/assets/size_catalog/full-sleeve-tee/l-front.png",
+        "mask": "/assets/size_catalog/full-sleeve-tee/l-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/full-sleeve-tee/l-back.png",
+        "mask": "/assets/size_catalog/full-sleeve-tee/l-back-mask.png"
+      }
+    }
+  },
+  "pullover-hoodie": {
+    "S": {
+      "front": {
+        "image": "/assets/size_catalog/pullover-hoodie/s-front.png",
+        "mask": "/assets/size_catalog/pullover-hoodie/s-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/pullover-hoodie/s-back.png",
+        "mask": "/assets/size_catalog/pullover-hoodie/s-back-mask.png"
+      }
+    },
+    "M": {
+      "front": {
+        "image": "/assets/size_catalog/pullover-hoodie/m-front.png",
+        "mask": "/assets/size_catalog/pullover-hoodie/m-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/pullover-hoodie/m-back.png",
+        "mask": "/assets/size_catalog/pullover-hoodie/m-back-mask.png"
+      }
+    },
+    "L": {
+      "front": {
+        "image": "/assets/size_catalog/pullover-hoodie/l-front.png",
+        "mask": "/assets/size_catalog/pullover-hoodie/l-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/pullover-hoodie/l-back.png",
+        "mask": "/assets/size_catalog/pullover-hoodie/l-back-mask.png"
+      }
+    }
+  },
+  "zip-up-hoodie": {
+    "S": {
+      "front": {
+        "image": "/assets/size_catalog/zip-up-hoodie/s-front.png",
+        "mask": "/assets/size_catalog/zip-up-hoodie/s-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/zip-up-hoodie/s-back.png",
+        "mask": "/assets/size_catalog/zip-up-hoodie/s-back-mask.png"
+      }
+    },
+    "M": {
+      "front": {
+        "image": "/assets/size_catalog/zip-up-hoodie/m-front.png",
+        "mask": "/assets/size_catalog/zip-up-hoodie/m-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/zip-up-hoodie/m-back.png",
+        "mask": "/assets/size_catalog/zip-up-hoodie/m-back-mask.png"
+      }
+    },
+    "L": {
+      "front": {
+        "image": "/assets/size_catalog/zip-up-hoodie/l-front.png",
+        "mask": "/assets/size_catalog/zip-up-hoodie/l-front-mask.png"
+      },
+      "back": {
+        "image": "/assets/size_catalog/zip-up-hoodie/l-back.png",
+        "mask": "/assets/size_catalog/zip-up-hoodie/l-back-mask.png"
+      }
+    }
+  }
+}

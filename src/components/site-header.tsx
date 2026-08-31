@@ -21,20 +21,24 @@ export function SiteHeader() {
     <nav className="sticky top-0 z-50 border-b border-brand-black/5 dark:border-white/5 bg-white/80 dark:bg-brand-black/85 px-6 py-4 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <div className="flex items-center gap-8">
-          <Link to="/" className="font-display text-2xl font-extrabold tracking-tight text-brand-black dark:text-white">
+          <Link
+            to="/"
+            className="font-display text-2xl font-extrabold tracking-tight text-brand-black dark:text-white"
+          >
             CUSTOM<span className="text-brand-orange">ON</span>
           </Link>
           <div className="hidden gap-6 text-sm font-medium uppercase tracking-wider md:flex">
-            {user?.role !== "shop-owner" && NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                activeProps={{ className: "text-brand-orange" }}
-                className="transition-colors hover:text-brand-orange text-brand-black/60 dark:text-white/60 dark:hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {user?.role !== "shop-owner" &&
+              NAV.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  activeProps={{ className: "text-brand-orange" }}
+                  className="transition-colors hover:text-brand-orange text-brand-black/60 dark:text-white/60 dark:hover:text-white"
+                >
+                  {item.label}
+                </Link>
+              ))}
             {user && (
               <Link
                 to="/dashboard"
@@ -67,10 +71,16 @@ export function SiteHeader() {
                   <UserIcon className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col items-start leading-none">
-                  <span className="text-xs font-bold text-brand-black dark:text-white">{user.username}</span>
-                  <span className={`mt-0.5 text-[8px] font-extrabold uppercase tracking-wider ${
-                    user.role === "shop-owner" ? "text-brand-orange" : "text-brand-black/40 dark:text-white/40"
-                  }`}>
+                  <span className="text-xs font-bold text-brand-black dark:text-white">
+                    {user.name ?? user.username}
+                  </span>
+                  <span
+                    className={`mt-0.5 text-[8px] font-extrabold uppercase tracking-wider ${
+                      user.role === "shop-owner"
+                        ? "text-brand-orange"
+                        : "text-brand-black/40 dark:text-white/40"
+                    }`}
+                  >
                     {user.role === "shop-owner" ? "Shop Owner" : "Customer"}
                   </span>
                 </div>
@@ -135,16 +145,17 @@ export function SiteHeader() {
       </div>
       {open && (
         <div className="mt-4 flex flex-col gap-1 border-t border-brand-black/5 dark:border-white/5 pt-4 md:hidden">
-          {user?.role !== "shop-owner" && NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={() => setOpen(false)}
-              className="px-2 py-3 text-sm font-medium uppercase tracking-wider text-brand-black/70 dark:text-white/70 hover:text-brand-orange"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {user?.role !== "shop-owner" &&
+            NAV.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setOpen(false)}
+                className="px-2 py-3 text-sm font-medium uppercase tracking-wider text-brand-black/70 dark:text-white/70 hover:text-brand-orange"
+              >
+                {item.label}
+              </Link>
+            ))}
           {user && (
             <Link
               to="/dashboard"
@@ -156,7 +167,7 @@ export function SiteHeader() {
               {user.role === "shop-owner" ? "Dashboard" : "My Orders"}
             </Link>
           )}
-          
+
           {user ? (
             <div className="border-t border-brand-black/5 dark:border-white/5 mt-2 pt-3 px-2 flex flex-col gap-2">
               <div className="flex items-center gap-2">
@@ -164,10 +175,16 @@ export function SiteHeader() {
                   <UserIcon className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex flex-col leading-none">
-                  <span className="text-xs font-bold text-brand-black dark:text-white">{user.username}</span>
-                  <span className={`text-[8px] font-extrabold uppercase tracking-wider ${
-                    user.role === "shop-owner" ? "text-brand-orange" : "text-brand-black/40 dark:text-white/40"
-                  }`}>
+                  <span className="text-xs font-bold text-brand-black dark:text-white">
+                    {user.name ?? user.username}
+                  </span>
+                  <span
+                    className={`text-[8px] font-extrabold uppercase tracking-wider ${
+                      user.role === "shop-owner"
+                        ? "text-brand-orange"
+                        : "text-brand-black/40 dark:text-white/40"
+                    }`}
+                  >
                     {user.role === "shop-owner" ? "Shop Owner" : "Customer"}
                   </span>
                 </div>
