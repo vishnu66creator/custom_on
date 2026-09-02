@@ -56,6 +56,7 @@ import {
 import { placeOrder } from "@/lib/orders-store";
 import { saveDesignToWishlist } from "@/lib/wishlist-store";
 import { useAuth } from "@/lib/auth";
+import { SiteHeader } from "@/components/site-header";
 
 export const Route = createFileRoute("/studio")({
   validateSearch: (
@@ -713,7 +714,8 @@ function StudioPage() {
 
   /* ---------------- render ---------------- */
   return (
-    <div className="min-h-screen bg-[#0b0b0d] text-zinc-100">
+    <div className="min-h-screen bg-brand-gray/40 dark:bg-[#0b0b0d] text-brand-black dark:text-zinc-100 transition-colors duration-300">
+      <SiteHeader />
       <StudioHeader
         cartQty={cartCount(cart)}
         onOpenCart={() => navigate({ to: "/cart" })}
@@ -734,10 +736,10 @@ function StudioPage() {
                   className={`flex w-52 shrink-0 items-center gap-3 rounded-xl border p-2 text-left transition lg:w-full ${
                     active
                       ? "border-[#FF5F1F] bg-[#FF5F1F]/10"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                      : "border-brand-black/10 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] hover:border-brand-black/25 dark:hover:border-white/25"
                   }`}
                 >
-                  <span className="grid h-14 w-12 shrink-0 place-items-center rounded-lg bg-white/5">
+                  <span className="grid h-14 w-12 shrink-0 place-items-center rounded-lg bg-brand-black/5 dark:bg-white/5">
                     <GarmentImage
                       product={p}
                       side="front"
@@ -759,45 +761,167 @@ function StudioPage() {
         </Panel>
 
         {/* Canvas */}
-        <section className="order-first flex flex-col rounded-2xl border border-white/10 bg-[#131316] lg:order-none">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 p-3 sm:flex sm:justify-between">
-            <div className="inline-flex rounded-lg bg-white/5 p-1">
+        <section className="order-first flex flex-col rounded-2xl border border-brand-black/5 dark:border-white/10 bg-white dark:bg-[#131316] shadow-sm dark:shadow-none lg:order-none transition-colors">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-brand-black/5 dark:border-white/10 p-3 sm:flex sm:justify-between">
+            <div className="inline-flex rounded-lg bg-brand-black/5 dark:bg-white/5 p-1">
               {(["front", "back"] as GarmentSide[]).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setSide(s)}
                   className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
-                    side === s ? "bg-[#FF5F1F] text-white" : "text-zinc-400 hover:text-white"
+                    side === s ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
                   }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <div className="flex items-center gap-2 text-xs text-brand-black/60 dark:text-zinc-400">
               <span className="hidden sm:inline">Zoom</span>
               <button
                 type="button"
                 onClick={() => setZoom((z) => clamp(z - 10, 60, 180))}
-                className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+                className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
               >
                 −
               </button>
-              <span className="w-12 text-center font-semibold text-zinc-200">{zoom}%</span>
+              <span className="w-12 text-center font-semibold text-brand-black dark:text-zinc-200">{zoom}%</span>
               <button
                 type="button"
                 onClick={() => setZoom((z) => clamp(z + 10, 60, 180))}
-                className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+                className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+          {/* Contextual Quick Text & Layer Editor Bar */}
+          {selected && selected.type === "text" && (
+            <div className="flex flex-wrap items-center gap-2.5 border-b border-brand-black/10 dark:border-white/10 bg-brand-orange/10 dark:bg-[#FF5F1F]/15 px-4 py-2.5 transition-all">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#FF5F1F] flex items-center gap-1.5 shrink-0">
+                <TypeIcon className="h-4 w-4" /> Quick Edit Text:
+              </span>
+
+              {/* Text Input */}
+              <input
+                type="text"
+                value={selected.text}
+                onChange={(e) => updateSelected({ text: e.target.value })}
+                placeholder="Enter text..."
+                className="min-w-[160px] flex-1 rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] px-3 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white shadow-xs"
+              />
+
+              {/* Font Family Dropdown */}
+              <select
+                value={selected.font}
+                onChange={(e) => updateSelected({ font: e.target.value })}
+                className="min-w-[140px] rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white shadow-xs"
+              >
+                {FONTS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Font Size Dropdown */}
+              <select
+                value={String(Math.round(selected.fontSize))}
+                onChange={(e) => updateSelected({ fontSize: Number(e.target.value) })}
+                className="w-22 rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white shadow-xs"
+              >
+                {Array.from(
+                  new Set([
+                    ...[16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 88, 104],
+                    Math.round(selected.fontSize),
+                  ]),
+                )
+                  .sort((a, b) => a - b)
+                  .map((s) => (
+                    <option key={s} value={s}>
+                      {s} px
+                    </option>
+                  ))}
+              </select>
+
+              {/* B / I / U Formatting Toggles */}
+              <div className="inline-flex overflow-hidden rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => updateSelected({ bold: !selected.bold })}
+                  className={`px-2.5 py-1.5 transition ${selected.bold ? "bg-[#FF5F1F] text-white" : "text-brand-black/70 dark:text-zinc-300 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
+                  title="Bold"
+                >
+                  <Bold className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSelected({ italic: !selected.italic })}
+                  className={`px-2.5 py-1.5 transition ${selected.italic ? "bg-[#FF5F1F] text-white" : "text-brand-black/70 dark:text-zinc-300 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
+                  title="Italic"
+                >
+                  <Italic className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateSelected({ underline: !selected.underline })}
+                  className={`px-2.5 py-1.5 transition ${selected.underline ? "bg-[#FF5F1F] text-white" : "text-brand-black/70 dark:text-zinc-300 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
+                  title="Underline"
+                >
+                  <Underline className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Color Swatches */}
+              <div className="flex items-center gap-1.5 pl-1">
+                {INK_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-label={`Color ${c}`}
+                    onClick={() => updateSelected({ color: c })}
+                    className={`h-5.5 w-5.5 rounded-full border-2 transition ${
+                      selected.color.toLowerCase() === c.toLowerCase()
+                        ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
+                        : "border-brand-black/20 dark:border-white/20 hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Shape Color Editor Bar */}
+          {selected && selected.type === "shape" && (
+            <div className="flex flex-wrap items-center gap-2.5 border-b border-brand-black/10 dark:border-white/10 bg-brand-orange/10 dark:bg-[#FF5F1F]/15 px-4 py-2.5 transition-all">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#FF5F1F] flex items-center gap-1.5 shrink-0">
+                <Shapes className="h-4 w-4" /> Shape Color:
+              </span>
+              <div className="flex items-center gap-1.5">
+                {INK_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-label={`Shape color ${c}`}
+                    onClick={() => updateSelected({ color: c })}
+                    className={`h-6 w-6 rounded-full border-2 transition ${
+                      selected.color.toLowerCase() === c.toLowerCase()
+                        ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
+                        : "border-brand-black/20 dark:border-white/20 hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4 rounded-b-2xl bg-zinc-100/50 dark:bg-transparent">
             {/* Tool rail */}
-            <div className="absolute left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-white/10 bg-[#1b1b1f]/95 p-1.5 backdrop-blur">
+            <div className="absolute left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-brand-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1b1b1f]/95 p-1.5 backdrop-blur shadow-md dark:shadow-none">
               <ToolButton
                 icon={MousePointer2}
                 label="Select"
@@ -818,7 +942,7 @@ function StudioPage() {
                 onClick={() => setTool(tool === "shapes" ? "select" : "shapes")}
               />
               {tool === "shapes" && (
-                <div className="flex flex-col gap-1 border-t border-white/10 pt-1">
+                <div className="flex flex-col gap-1 border-t border-brand-black/10 dark:border-white/10 pt-1">
                   <ToolButton icon={Square} label="Square" onClick={() => addShape("square")} />
                   <ToolButton icon={Circle} label="Circle" onClick={() => addShape("circle")} />
                   <ToolButton
@@ -828,7 +952,7 @@ function StudioPage() {
                   />
                 </div>
               )}
-              <div className="mt-1 flex flex-col gap-1 border-t border-white/10 pt-1">
+              <div className="mt-1 flex flex-col gap-1 border-t border-brand-black/10 dark:border-white/10 pt-1">
                 <ToolButton icon={Undo2} label="Undo" onClick={undo} disabled={past.length === 0} />
                 <ToolButton
                   icon={Redo2}
@@ -894,8 +1018,8 @@ function StudioPage() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 p-3 text-xs">
-            <span className="mr-2 text-zinc-500">
+          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-brand-black/5 dark:border-white/10 p-3 text-xs">
+            <span className="mr-2 text-brand-black/50 dark:text-zinc-500">
               {selected ? "Selected layer" : "Select a layer to edit"}
             </span>
             <CanvasAction
@@ -943,22 +1067,22 @@ function StudioPage() {
                   className={`aspect-square rounded-full border-2 transition ${
                     color === c
                       ? "border-[#FF5F1F] ring-2 ring-[#FF5F1F]/30"
-                      : "border-white/15 hover:border-white/40"
+                      : "border-brand-black/15 dark:border-white/15 hover:border-brand-black/40 dark:hover:border-white/40"
                   }`}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
-            <p className="mt-2 text-xs text-zinc-400">{colorName}</p>
+            <p className="mt-2 text-xs text-brand-black/60 dark:text-zinc-400">{colorName}</p>
           </Panel>
 
           <Panel number={3} title="Target group & size">
-            <div className="grid grid-cols-3 rounded-lg bg-white/5 p-1">
+            <div className="grid grid-cols-3 rounded-lg bg-brand-black/5 dark:bg-white/5 p-1">
               <div className="flex-1 rounded-lg bg-[#FF5F1F] px-3 py-2 text-center text-xs font-bold text-white">
                 Men
               </div>
             </div>
-            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-brand-black/50 dark:text-zinc-500">
               Men sizing
             </p>
             <div className="mt-2 grid grid-cols-3 gap-2">
@@ -970,7 +1094,7 @@ function StudioPage() {
                   className={`rounded-lg border px-2 py-2 text-center transition ${
                     size === s
                       ? "border-[#FF5F1F] bg-[#FF5F1F] text-white"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/30"
+                      : "border-brand-black/10 dark:border-white/10 bg-brand-black/[0.03] dark:bg-white/[0.03] hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
                   }`}
                 >
                   <span className="block text-sm font-bold">{s}</span>
@@ -990,14 +1114,14 @@ function StudioPage() {
                   className={`rounded-lg py-2 text-xs font-bold uppercase tracking-wider transition ${
                     side === s
                       ? "bg-[#FF5F1F] text-white"
-                      : "bg-white/5 text-zinc-300 hover:bg-white/10"
+                      : "bg-brand-black/5 dark:bg-white/5 text-brand-black/80 dark:text-zinc-300 hover:bg-brand-black/10 dark:hover:bg-white/10"
                   }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-zinc-500">
+            <p className="mt-2 text-[11px] text-brand-black/50 dark:text-zinc-500">
               {layers.filter((l) => l.side === "front").length} front ·{" "}
               {layers.filter((l) => l.side === "back").length} back element(s)
             </p>
@@ -1012,27 +1136,27 @@ function StudioPage() {
             />
             <Row label="Back print" value={hasBack ? `$${BACK_PRINT_FEE.toFixed(2)}` : "$0.00"} />
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Qty</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-brand-black/50 dark:text-zinc-400">Qty</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => clamp(q - 1, 1, 999))}
-                  className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+                  className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
                 >
                   −
                 </button>
-                <span className="w-8 text-center font-semibold">{quantity}</span>
+                <span className="w-8 text-center font-semibold text-brand-black dark:text-white">{quantity}</span>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => clamp(q + 1, 1, 999))}
-                  className="h-7 w-7 rounded-md border border-white/10 hover:border-white/30"
+                  className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
                 >
                   +
                 </button>
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
-              <span className="text-sm font-bold uppercase tracking-widest">Total</span>
+            <div className="mt-3 flex items-center justify-between border-t border-brand-black/5 dark:border-white/10 pt-3">
+              <span className="text-sm font-bold uppercase tracking-widest text-brand-black dark:text-white">Total</span>
               <span className="text-xl font-extrabold text-[#FF5F1F]">${total.toFixed(2)}</span>
             </div>
             <button
@@ -1045,7 +1169,7 @@ function StudioPage() {
             <button
               type="button"
               onClick={handleSaveDesign}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-300 transition hover:border-white/40"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-brand-black/10 dark:border-white/15 py-2.5 text-xs font-bold uppercase tracking-widest text-brand-black/80 dark:text-zinc-300 transition hover:border-brand-black/30 dark:hover:border-white/40"
             >
               <Heart className="h-3.5 w-3.5" /> Save design
             </button>
@@ -1154,49 +1278,40 @@ function StudioHeader({
   onSave: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 bg-[#0b0b0d]/95 px-4 py-3 backdrop-blur">
-      <div className="flex min-w-0 items-center gap-3">
-        <Link to="/" className="shrink-0 text-lg font-extrabold tracking-tight">
-          Custom<span className="text-[#FF5F1F]">ON</span>
-        </Link>
-        <span className="hidden text-zinc-600 sm:inline">/</span>
-        <h1 className="truncate text-sm font-semibold text-zinc-300 sm:text-base">Design Studio</h1>
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-brand-black/5 dark:border-white/5 bg-white/90 dark:bg-[#0b0b0d]/90 px-6 py-2.5 backdrop-blur-md text-brand-black dark:text-white transition-colors">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-extrabold uppercase tracking-widest text-brand-orange">Canvas</span>
+        <span className="text-brand-black/30 dark:text-white/20">/</span>
+        <h1 className="truncate text-xs font-bold uppercase tracking-widest text-brand-black/70 dark:text-white/70">Interactive Builder</h1>
       </div>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onSave}
-          className="hidden items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/40 sm:flex"
+          className="flex items-center gap-1.5 rounded-lg border border-brand-black/10 dark:border-white/15 px-3 py-1.5 text-xs font-semibold text-brand-black dark:text-white hover:bg-brand-black/5 dark:hover:bg-white/10 transition"
         >
-          <Save className="h-4 w-4" /> Save design
+          <Save className="h-3.5 w-3.5" /> Save design
         </button>
         <Link
           to="/dashboard"
           search={{ tab: "orders" }}
-          className="hidden items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-white/40 sm:flex"
+          className="hidden items-center gap-1.5 rounded-lg border border-brand-black/10 dark:border-white/15 px-3 py-1.5 text-xs font-semibold text-brand-black dark:text-white hover:bg-brand-black/5 dark:hover:bg-white/10 transition sm:flex"
         >
-          <Layers className="h-4 w-4" /> My designs
+          <Layers className="h-3.5 w-3.5" /> My designs
         </Link>
         <button
           type="button"
           onClick={onOpenCart}
-          className="relative rounded-lg border border-white/15 p-2 transition hover:border-white/40"
+          className="relative rounded-lg border border-brand-black/10 dark:border-white/15 p-1.5 text-brand-black dark:text-white hover:bg-brand-black/5 dark:hover:bg-white/10 transition"
           aria-label="Open cart"
         >
           <ShoppingCart className="h-4 w-4" />
           {cartQty > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-[#FF5F1F] text-[10px] font-bold">
+            <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#FF5F1F] text-[9px] font-bold text-white">
               {cartQty}
             </span>
           )}
         </button>
-        <Link
-          to="/"
-          className="rounded-lg p-2 text-zinc-400 transition hover:text-white"
-          aria-label="Exit studio"
-        >
-          <X className="h-4 w-4" />
-        </Link>
       </div>
     </header>
   );
@@ -1212,8 +1327,8 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#131316] p-4">
-      <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300">
+    <section className="rounded-2xl border border-brand-black/5 dark:border-white/10 bg-white dark:bg-[#131316] p-4 shadow-sm dark:shadow-none transition-colors">
+      <h2 className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-brand-black/70 dark:text-zinc-300">
         <span className="text-[#FF5F1F]">{number}.</span> {title}
       </h2>
       {children}
@@ -1224,8 +1339,8 @@ function Panel({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between py-1 text-sm">
-      <span className="truncate text-zinc-400">{label}</span>
-      <span className="font-semibold">{value}</span>
+      <span className="truncate text-brand-black/60 dark:text-zinc-400">{label}</span>
+      <span className="font-semibold text-brand-black dark:text-white">{value}</span>
     </div>
   );
 }
@@ -1254,7 +1369,7 @@ function ToolButton({
         onClick();
       }}
       className={`grid h-12 w-12 place-items-center rounded-lg text-[9px] font-semibold uppercase tracking-wide transition ${
-        active ? "bg-[#FF5F1F] text-white" : "text-zinc-400 hover:bg-white/10 hover:text-white"
+        active ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:bg-brand-black/5 dark:hover:bg-white/10 hover:text-brand-black dark:hover:text-white"
       } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
     >
       <span className="flex flex-col items-center gap-0.5">
@@ -1283,8 +1398,8 @@ function CanvasAction({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 font-semibold transition ${
-        danger ? "text-red-400 hover:border-red-400/60" : "text-zinc-300 hover:border-white/35"
+      className={`inline-flex items-center gap-1.5 rounded-lg border border-brand-black/10 dark:border-white/10 px-3 py-1.5 font-semibold transition ${
+        danger ? "text-red-500 dark:text-red-400 hover:border-red-400/60" : "text-brand-black/70 dark:text-zinc-300 hover:border-brand-black/30 dark:hover:border-white/35"
       } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
     >
       <Icon className="h-3.5 w-3.5" /> {label}
@@ -1439,18 +1554,18 @@ function TextPanel({
           <div
             key={l.id}
             className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${
-              l.id === active?.id ? "border-[#FF5F1F] bg-[#FF5F1F]/10" : "border-white/10"
+              l.id === active?.id ? "border-[#FF5F1F] bg-[#FF5F1F]/10" : "border-brand-black/10 dark:border-white/10"
             }`}
           >
             <button type="button" onClick={() => onSelect(l)} className="min-w-0 text-left">
-              <span className="block truncate text-xs font-semibold">{l.text || "(empty)"}</span>
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500">{l.side}</span>
+              <span className="block truncate text-xs font-semibold text-brand-black dark:text-white">{l.text || "(empty)"}</span>
+              <span className="text-[10px] uppercase tracking-wider text-brand-black/50 dark:text-zinc-500">{l.side}</span>
             </button>
             <button
               type="button"
               aria-label="Delete text"
               onClick={() => onDelete(l.id)}
-              className="shrink-0 text-zinc-500 transition hover:text-red-400"
+              className="shrink-0 text-brand-black/40 dark:text-zinc-500 transition hover:text-red-500 dark:hover:text-red-400"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -1459,7 +1574,7 @@ function TextPanel({
         <button
           type="button"
           onClick={onAdd}
-          className="w-full rounded-lg border border-dashed border-white/20 py-2 text-xs font-semibold text-zinc-300 transition hover:border-[#FF5F1F] hover:text-white"
+          className="w-full rounded-lg border border-dashed border-brand-black/20 dark:border-white/20 py-2 text-xs font-semibold text-brand-black/70 dark:text-zinc-300 transition hover:border-[#FF5F1F] hover:text-[#FF5F1F]"
         >
           + Add text layer
         </button>
@@ -1472,13 +1587,13 @@ function TextPanel({
             onChange={(e) => onChange(active.id, { text: e.target.value })}
             rows={2}
             placeholder="Type your text"
-            className="w-full resize-none rounded-lg border border-white/10 bg-white/[0.04] p-2.5 text-sm outline-none focus:border-[#FF5F1F]"
+            className="w-full resize-none rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] p-2.5 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
           />
           <div className="flex flex-wrap gap-2">
             <select
               value={active.font}
               onChange={(e) => onChange(active.id, { font: e.target.value })}
-              className="min-w-[150px] flex-1 rounded-lg border border-white/10 bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+              className="min-w-[150px] flex-1 rounded-lg border border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
             >
               {FONTS.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -1489,7 +1604,7 @@ function TextPanel({
             <select
               value={String(Math.round(active.fontSize))}
               onChange={(e) => onChange(active.id, { fontSize: Number(e.target.value) })}
-              className="w-24 rounded-lg border border-white/10 bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+              className="w-24 rounded-lg border border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
             >
               {Array.from(
                 new Set([
@@ -1623,7 +1738,7 @@ function Toggle({
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
-      className={`px-3 py-2 transition ${active ? "bg-[#FF5F1F] text-white" : "text-zinc-400 hover:bg-white/10"}`}
+      className={`px-3 py-2 transition ${active ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
     >
       {children}
     </button>
@@ -1647,9 +1762,9 @@ function SliderRow({
 }) {
   return (
     <label className="block">
-      <span className="flex items-center justify-between text-[11px] uppercase tracking-widest text-zinc-400">
+      <span className="flex items-center justify-between text-[11px] uppercase tracking-widest text-brand-black/60 dark:text-zinc-400">
         {label}
-        <span className="font-semibold text-zinc-200">{value}</span>
+        <span className="font-semibold text-brand-black dark:text-zinc-200">{value}</span>
       </span>
       <input
         type="range"
@@ -1684,29 +1799,29 @@ function CartDrawer({
   const total = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs" onClick={onClose}>
       <aside
-        className="flex h-full w-full max-w-md flex-col border-l border-white/10 bg-[#131316]"
+        className="flex h-full w-full max-w-md flex-col border-l border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#131316] text-brand-black dark:text-white"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-white/10 p-4">
-          <h2 className="truncate text-sm font-bold uppercase tracking-widest">Your cart</h2>
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-brand-black/10 dark:border-white/10 p-4">
+          <h2 className="truncate text-sm font-bold uppercase tracking-widest text-brand-black dark:text-white">Your cart</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close cart"
-            className="text-zinc-400 hover:text-white"
+            className="text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          {items.length === 0 && <p className="text-sm text-zinc-500">Your cart is empty.</p>}
+          {items.length === 0 && <p className="text-sm text-brand-black/50 dark:text-zinc-500">Your cart is empty.</p>}
           {items.map((item) => (
-            <div key={item.id} className="rounded-xl border border-white/10 p-3">
+            <div key={item.id} className="rounded-xl border border-brand-black/10 dark:border-white/10 p-3">
               <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-                <span className="grid h-16 w-14 shrink-0 place-items-center rounded-lg bg-white/5">
+                <span className="grid h-16 w-14 shrink-0 place-items-center rounded-lg bg-brand-black/5 dark:bg-white/5">
                   <GarmentImage
                     product={
                       PRODUCTS.find((candidate) => candidate.id === item.productId) ?? PRODUCTS[0]!
@@ -1719,15 +1834,15 @@ function CartDrawer({
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{item.productName}</p>
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-brand-black/60 dark:text-zinc-400">
                     {item.colorName} · {item.targetGroup} · Size {item.size}
                   </p>
-                  <p className="truncate text-[11px] text-zinc-500">{item.summary}</p>
+                  <p className="truncate text-[11px] text-brand-black/50 dark:text-zinc-500">{item.summary}</p>
                   <div className="mt-1.5 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => onQuantity(item.id, item.quantity - 1)}
-                      className="h-6 w-6 rounded border border-white/10"
+                      className="h-6 w-6 rounded border border-brand-black/15 dark:border-white/10"
                     >
                       −
                     </button>
@@ -1735,7 +1850,7 @@ function CartDrawer({
                     <button
                       type="button"
                       onClick={() => onQuantity(item.id, item.quantity + 1)}
-                      className="h-6 w-6 rounded border border-white/10"
+                      className="h-6 w-6 rounded border border-brand-black/15 dark:border-white/10"
                     >
                       +
                     </button>
@@ -1749,7 +1864,7 @@ function CartDrawer({
                     type="button"
                     aria-label="Remove item"
                     onClick={() => onRemove(item.id)}
-                    className="mt-1 text-zinc-500 hover:text-red-400"
+                    className="mt-1 text-brand-black/40 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -1759,27 +1874,27 @@ function CartDrawer({
           ))}
         </div>
 
-        <div className="space-y-2 border-t border-white/10 p-4">
+        <div className="space-y-2 border-t border-brand-black/10 dark:border-white/10 p-4">
           <input
             value={checkout.name}
             onChange={(e) => onCheckoutChange({ ...checkout, name: e.target.value })}
             placeholder="Shipping name"
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+            className="w-full rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
           />
           <input
             value={checkout.address}
             onChange={(e) => onCheckoutChange({ ...checkout, address: e.target.value })}
             placeholder="Shipping address"
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+            className="w-full rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
           />
           <input
             value={checkout.phone}
             onChange={(e) => onCheckoutChange({ ...checkout, phone: e.target.value })}
             placeholder="Phone number"
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F]"
+            className="w-full rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] px-3 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
           />
           <div className="flex items-center justify-between pt-1">
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Total</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-brand-black/60 dark:text-zinc-400">Total</span>
             <span className="text-lg font-extrabold text-[#FF5F1F]">${total.toFixed(2)}</span>
           </div>
           <button
