@@ -15,6 +15,19 @@ const pool = new Pool({
 const APPAREL_COLORS = [
   "#0A0A0A", // Black
   "#FFFFFF", // White
+  "#1F2A44", // Navy
+  "#9CA3AF", // Heather Gray
+  "#374151", // Charcoal
+  "#FF5F1F", // Brand Orange
+  "#F5EFE0", // Cream
+  "#7F1D1D", // Maroon
+  "#2D4A3E", // Forest Green
+  "#1D4ED8", // Royal Blue
+  "#38BDF8", // Sky Blue
+  "#EAB308", // Mustard
+  "#DC2626", // Red
+  "#EC4899", // Pink
+  "#8B5CF6", // Purple
 ];
 
 const STANDARD_SIZES = ["S", "M", "L"];

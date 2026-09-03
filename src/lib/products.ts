@@ -22,7 +22,33 @@ export type Product = {
   blurb: string;
 };
 
-export const ALL_APPAREL_COLORS = ["#0A0A0A", "#FFFFFF"];
+export const COLOR_NAMES: Record<string, string> = {
+  "#0A0A0A": "Black",
+  "#FFFFFF": "White",
+  "#1F2A44": "Navy",
+  "#9CA3AF": "Heather Gray",
+  "#374151": "Charcoal",
+  "#FF5F1F": "Brand Orange",
+  "#F5EFE0": "Cream",
+  "#7F1D1D": "Maroon",
+  "#2D4A3E": "Forest Green",
+  "#1D4ED8": "Royal Blue",
+  "#38BDF8": "Sky Blue",
+  "#EAB308": "Mustard",
+  "#DC2626": "Red",
+  "#EC4899": "Pink",
+  "#8B5CF6": "Purple",
+};
+
+export const ALL_APPAREL_COLORS = Object.keys(COLOR_NAMES);
+
+export function getColorName(hex: string): string {
+  if (!hex) return "Default";
+  const upper = hex.toUpperCase();
+  if (COLOR_NAMES[upper]) return COLOR_NAMES[upper];
+  if (COLOR_NAMES[hex]) return COLOR_NAMES[hex];
+  return `Custom (${hex.toUpperCase()})`;
+}
 
 export const STANDARD_APPAREL_SIZES = ["S", "M", "L"];
 

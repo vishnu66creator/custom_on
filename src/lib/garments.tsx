@@ -762,14 +762,31 @@ export function GarmentImage({
 
   return (
     <div
-      className={`relative overflow-hidden ${className ?? ""}`}
+      className={`relative ${className ?? ""}`}
       role="img"
       aria-label={`${product.name} ${side} view`}
     >
+      {/* Floor Contact Ground Shadow Effect */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-1 left-1/2 h-6 w-[64%] -translate-x-1/2 rounded-[100%] bg-black/95 blur-md transition-all"
+      />
+
       <img
         src={image}
         alt={`${product.name} ${side} view`}
         className="absolute inset-0 h-full w-full object-contain"
+        style={{
+          WebkitMaskImage: `url(${maskImage})`,
+          maskImage: `url(${maskImage})`,
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          filter: "drop-shadow(0 22px 18px rgba(0, 0, 0, 0.85))",
+        }}
         draggable={false}
       />
       {color && (
@@ -778,7 +795,7 @@ export function GarmentImage({
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
-              backgroundColor: color,
+              background: color,
               opacity: 0.62,
               mixBlendMode: "color",
               WebkitMaskImage: `url(${maskImage})`,
@@ -795,7 +812,7 @@ export function GarmentImage({
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
-              backgroundColor: color,
+              background: color,
               opacity: 0.72,
               mixBlendMode: "multiply",
               WebkitMaskImage: `url(${maskImage})`,

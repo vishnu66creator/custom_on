@@ -56,7 +56,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.7 0.2 41); /* brand orange */
+  --primary: oklch(0.7 0.2 41);
+  /* brand orange */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.97 0.002 286);
   --secondary-foreground: oklch(0.145 0 0);
@@ -94,9 +95,11 @@
   .bg-white {
     background-color: var(--color-card) !important;
   }
+
   .bg-brand-gray {
     background-color: oklch(0.22 0 0) !important;
   }
+
   .bg-neutral-50 {
     background-color: oklch(0.22 0 0) !important;
   }
@@ -105,21 +108,27 @@
   .text-brand-black {
     color: var(--color-foreground) !important;
   }
+
   .text-brand-black\/80 {
     color: oklch(0.985 0 0 / 80%) !important;
   }
+
   .text-brand-black\/70 {
     color: oklch(0.985 0 0 / 70%) !important;
   }
+
   .text-brand-black\/60 {
     color: oklch(0.985 0 0 / 60%) !important;
   }
+
   .text-brand-black\/50 {
     color: oklch(0.985 0 0 / 50%) !important;
   }
+
   .text-brand-black\/40 {
     color: oklch(0.985 0 0 / 40%) !important;
   }
+
   .text-brand-black\/30 {
     color: oklch(0.985 0 0 / 30%) !important;
   }
@@ -128,41 +137,57 @@
   .border-brand-black\/5 {
     border-color: oklch(1 0 0 / 8%) !important;
   }
+
   .border-brand-black\/10 {
     border-color: oklch(1 0 0 / 12%) !important;
   }
+
   .border-brand-black\/15 {
     border-color: oklch(1 0 0 / 18%) !important;
   }
+
   .border-brand-black\/20 {
     border-color: oklch(1 0 0 / 22%) !important;
   }
+
   .border-brand-black {
     border-color: var(--color-border) !important;
   }
 
   /* Ensure text fields and forms look premium in dark mode */
-  input[type="text"], input[type="email"], input[type="password"], textarea, select {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
     background-color: oklch(0.22 0 0) !important;
     color: var(--color-foreground) !important;
     border-color: oklch(1 0 0 / 12%) !important;
   }
-  input[type="text"]::placeholder, input[type="email"]::placeholder, textarea::placeholder {
+
+  input[type="text"]::placeholder,
+  input[type="email"]::placeholder,
+  textarea::placeholder {
     color: oklch(0.985 0 0 / 40%) !important;
   }
 
   /* Preserve high-contrast readable colors for primary dark buttons and tags */
-  button.bg-brand-black, a.bg-brand-black {
+  button.bg-brand-black,
+  a.bg-brand-black {
     background-color: oklch(0.985 0 0) !important;
     color: oklch(0.12 0 0) !important;
   }
-  button.bg-brand-black:hover, a.bg-brand-black:hover {
+
+  button.bg-brand-black:hover,
+  a.bg-brand-black:hover {
     background-color: var(--color-brand-orange) !important;
     color: white !important;
   }
 
   /* Dialogs and modals styling */
-  .modal, dialog, [role="dialog"] {
+  .modal,
+  dialog,
+  [role="dialog"] {
     background-color: oklch(0.17 0 0) !important;
     color: var(--color-foreground) !important;
     border-color: oklch(1 0 0 / 10%) !important;
@@ -173,16 +198,22 @@
   * {
     border-color: var(--color-border);
   }
+
   html {
     scroll-behavior: smooth;
   }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 {
+
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
@@ -201,12 +232,15 @@
 .unseen-thin-border-r {
   border-right: 1px solid var(--color-border);
 }
+
 .unseen-thin-border-b {
   border-bottom: 1px solid var(--color-border);
 }
+
 .dark .unseen-thin-border-r {
   border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
+
 .dark .unseen-thin-border-b {
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
@@ -239,3 +273,25 @@
   transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+/* Studio Background Environment - Studio Gray with Glowing Light Effect */
+.bg-env-spotlight {
+  background: radial-gradient(ellipse at 50% 38%, #525766 0%, #363945 28%, #1c1e26 60%, #0d0e12 100%) !important;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Luminous Glowing Light Effect Behind Upper Garment */
+.bg-env-spotlight::before {
+  content: '';
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translate(-50%, -20%);
+  width: 70%;
+  height: 55%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(225, 230, 242, 0.32) 0%, rgba(175, 182, 198, 0.12) 42%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(26px);
+}

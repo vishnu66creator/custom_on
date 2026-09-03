@@ -4,6 +4,7 @@ import { PageShell } from "@/components/page-shell";
 import {
   CATEGORIES,
   ALL_APPAREL_COLORS,
+  getColorName,
   STANDARD_APPAREL_SIZES,
   type Category,
   type Product,
@@ -211,10 +212,13 @@ function ProductsPage() {
                     <button
                       key={c}
                       type="button"
-                      aria-label={`Color ${c}`}
+                      title={getColorName(c)}
+                      aria-label={`Color ${getColorName(c)}`}
                       onClick={() => setColor(color === c ? null : c)}
-                      className={`size-8 rounded-full border-2 ${
-                        color === c ? "border-brand-orange" : "border-brand-black/10"
+                      className={`size-8 rounded-full border-2 transition ${
+                        color === c
+                          ? "border-brand-orange ring-2 ring-brand-orange/30 scale-105"
+                          : "border-brand-black/15 hover:border-brand-black/40"
                       }`}
                       style={{ background: c }}
                     />

@@ -6,9 +6,12 @@ export function SiteFooter() {
     <footer className="bg-brand-black px-6 py-20 text-white">
       <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-4">
         <div>
-          <span className="mb-6 block font-display text-3xl font-extrabold tracking-tight">
-            CUSTOM<span className="text-brand-orange">ON</span>
-          </span>
+          <Link to="/" className="mb-6 flex items-center gap-3.5 font-display text-3xl font-extrabold tracking-tight">
+            <img src="/logo.png" alt="Custom On Logo" className="h-12 w-12 shrink-0 object-contain drop-shadow-xs" />
+            <span>
+              CUSTOM<span className="text-brand-orange">ON</span>
+            </span>
+          </Link>
           <p className="mb-8 max-w-sm text-xs leading-relaxed text-white/40">
             Your trusted online destination for premium quality products. We're committed to
             providing exceptional customer service and an outstanding shopping experience.
