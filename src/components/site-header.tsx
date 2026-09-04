@@ -23,9 +23,12 @@ export function SiteHeader() {
         <div className="flex items-center gap-8">
           <Link
             to="/"
-            className="font-display text-2xl font-extrabold tracking-tight text-brand-black dark:text-white"
+            className="flex items-center gap-3 font-display text-2xl font-extrabold tracking-tight text-brand-black dark:text-white"
           >
-            CUSTOM<span className="text-brand-orange">ON</span>
+            <img src="/logo.png" alt="Custom On Logo" className="h-11 w-11 shrink-0 object-contain drop-shadow-xs" />
+            <span>
+              CUSTOM<span className="text-brand-orange">ON</span>
+            </span>
           </Link>
           <div className="hidden gap-6 text-sm font-medium uppercase tracking-wider md:flex">
             {user?.role !== "shop-owner" &&

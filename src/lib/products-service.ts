@@ -94,7 +94,11 @@ export function mapDbProductToProduct(row: ProductRow): Product {
     category: (row.category as Product["category"]) || "T-Shirts",
     price: typeof row.price === "number" ? row.price : Number(row.price) || 0,
     colors: Array.isArray(row.colors)
-      ? row.colors.filter((value): value is string => ALL_APPAREL_COLORS.includes(value))
+      ? row.colors.filter(
+          (value): value is string =>
+            typeof value === "string" &&
+            (ALL_APPAREL_COLORS.includes(value) || value.startsWith("#")),
+        )
       : ALL_APPAREL_COLORS,
     sizes: Array.isArray(row.sizes)
       ? row.sizes.filter((value): value is string => STANDARD_APPAREL_SIZES.includes(value))

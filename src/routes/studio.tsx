@@ -15,10 +15,13 @@ import {
   Bold,
   Circle,
   Copy,
+  Crosshair,
+  Grid,
   Heart,
   Image as ImageIcon,
   Italic,
   Layers,
+  Magnet,
   MousePointer2,
   Redo2,
   RotateCw,
@@ -41,6 +44,7 @@ import {
   GarmentImage,
   contrastInk,
   fitScaleFor,
+  getPrintArea,
   type GarmentSide,
   type TargetGroup,
 } from "@/lib/garments";
@@ -129,6 +133,21 @@ const COLOR_NAMES: Record<string, string> = {
   "#EC4899": "Pink",
   "#8B5CF6": "Purple",
 };
+
+const GRADIENT_MIXTURES = [
+  { name: "Sunset Glow", value: "linear-gradient(135deg, #FF5F1F 0%, #FFB03A 100%)" },
+  { name: "Cyberpunk", value: "linear-gradient(135deg, #FF007F 0%, #7928CA 50%, #00DFD8 100%)" },
+  { name: "Neon Aurora", value: "linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%)" },
+  { name: "Tie-Dye Prism", value: "linear-gradient(135deg, #FF0055 0%, #7A00FF 50%, #00E5FF 100%)" },
+  { name: "Cosmic Violet", value: "linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)" },
+  { name: "Emerald Forest", value: "linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)" },
+  { name: "Oceanic Wave", value: "linear-gradient(135deg, #1E3A8A 0%, #3B82F6 50%, #06B6D4 100%)" },
+  { name: "Crimson Blaze", value: "linear-gradient(135deg, #DC2626 0%, #9333EA 100%)" },
+  { name: "Gold Luxury", value: "linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #78350F 100%)" },
+  { name: "Midnight Stealth", value: "linear-gradient(135deg, #1F2937 0%, #111827 100%)" },
+  { name: "Cotton Candy", value: "linear-gradient(135deg, #F472B6 0%, #38BDF8 100%)" },
+  { name: "Center Spotlight", value: "radial-gradient(circle at center, #FF5F1F 0%, #111827 100%)" },
+];
 
 const FONTS = [
   { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
@@ -267,11 +286,30 @@ function StudioPage() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  const [colorTab, setColorTab] = useState<"solid" | "gradients" | "custom">("solid");
+  const [mixColor1, setMixColor1] = useState<string>("#FF5F1F");
+  const [mixColor2, setMixColor2] = useState<string>("#8B5CF6");
+  const [mixType, setMixType] = useState<"135deg" | "180deg" | "90deg" | "radial">("135deg");
+
+  const [snappingEnabled, setSnappingEnabled] = useState(true);
+  const snappingRef = useRef(snappingEnabled);
+  useEffect(() => {
+    snappingRef.current = snappingEnabled;
+  }, [snappingEnabled]);
+
+  const [activeGuides, setActiveGuides] = useState<ActiveGuidesState | null>(null);
+
   const printRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const hydratedRef = useRef(false);
 
-  const colorName = COLOR_NAMES[color] ?? color;
+  const gradientMatch = GRADIENT_MIXTURES.find((g) => g.value === color);
+  const colorName = gradientMatch
+    ? gradientMatch.name
+    : color.includes("gradient")
+      ? "Custom Colour Mixture"
+      : COLOR_NAMES[color.toUpperCase()] ?? COLOR_NAMES[color] ?? color;
+  const printArea = useMemo(() => getPrintArea(product.id, side), [product.id, side]);
   const ink = contrastInk(color);
   const fit = fitScaleFor(targetGroup);
 
@@ -514,6 +552,81 @@ function StudioPage() {
   };
 
   useEffect(() => {
+    const checkGuides = (
+      rawX: number,
+      rawY: number,
+      layerId: string,
+      allLayers: Layer[],
+      garmentSide: GarmentSide,
+      snapEnabled: boolean,
+    ) => {
+      const SNAP_THRESHOLD = 2.2;
+
+      // Alignment candidates for Full T-Shirt Canvas
+      const vertCandidates: GuideLine[] = [
+        { id: "v-center", orientation: "vertical", position: 50, label: "CENTER (X)", isCenter: true },
+        { id: "v-left", orientation: "vertical", position: 0, label: "GARMENT LEFT" },
+        { id: "v-right", orientation: "vertical", position: 100, label: "GARMENT RIGHT" },
+      ];
+
+      const horizCandidates: GuideLine[] = [
+        { id: "h-center", orientation: "horizontal", position: 50, label: "CENTER (Y)", isCenter: true },
+        { id: "h-chest", orientation: "horizontal", position: 32, label: "CHEST LINE" },
+        { id: "h-top", orientation: "horizontal", position: 0, label: "GARMENT TOP" },
+        { id: "h-bottom", orientation: "horizontal", position: 100, label: "GARMENT BOTTOM" },
+      ];
+
+      // Include other design elements on same side
+      allLayers.forEach((other) => {
+        if (other.id === layerId || other.side !== garmentSide) return;
+        const labelName = other.type === "text" ? `"${other.text.slice(0, 10)}"` : other.type;
+        vertCandidates.push({
+          id: `v-${other.id}`,
+          orientation: "vertical",
+          position: other.x,
+          label: `ALIGN ${labelName.toUpperCase()}`,
+        });
+        horizCandidates.push({
+          id: `h-${other.id}`,
+          orientation: "horizontal",
+          position: other.y,
+          label: `ALIGN ${labelName.toUpperCase()}`,
+        });
+      });
+
+      let finalX = rawX;
+      let finalY = rawY;
+      let activeVert: GuideLine | null = null;
+      let activeHoriz: GuideLine | null = null;
+
+      let minVDiff = SNAP_THRESHOLD;
+      for (const cand of vertCandidates) {
+        const diff = Math.abs(rawX - cand.position);
+        if (diff < minVDiff) {
+          minVDiff = diff;
+          activeVert = cand;
+          if (snapEnabled) {
+            finalX = cand.position;
+          }
+        }
+      }
+
+      let minHDiff = SNAP_THRESHOLD;
+      for (const cand of horizCandidates) {
+        const diff = Math.abs(rawY - cand.position);
+        if (diff < minHDiff) {
+          minHDiff = diff;
+          activeHoriz = cand;
+          if (snapEnabled) {
+            finalY = cand.position;
+          }
+        }
+      }
+
+      const isCrosshair = Boolean(activeVert?.isCenter && activeHoriz?.isCenter);
+      return { finalX, finalY, activeVert, activeHoriz, isCrosshair };
+    };
+
     const onMove = (event: PointerEvent) => {
       const state = interaction.current;
       if (!state) return;
@@ -524,16 +637,36 @@ function StudioPage() {
       setLayers((current) =>
         current.map((l) => {
           if (l.id !== state.id) return l;
+
           if (mode === "move") {
+            const rawX = clamp(origin.x + (dx / rect.width) * 100, 0, 100);
+            const rawY = clamp(origin.y + (dy / rect.height) * 100, 0, 100);
+
+            const result = checkGuides(rawX, rawY, l.id, current, side, snappingRef.current);
+            setActiveGuides({
+              vertical: result.activeVert,
+              horizontal: result.activeHoriz,
+              isCrosshair: result.isCrosshair,
+            });
+
             return {
               ...l,
-              x: clamp(origin.x + (dx / rect.width) * 100, 0, 100),
-              y: clamp(origin.y + (dy / rect.height) * 100, 0, 100),
+              x: result.finalX,
+              y: result.finalY,
             };
           }
+
           if (mode === "resize") {
             const scale = 1 + (dx / rect.width) * 2.2;
             const width = clamp(origin.width * scale, 6, 200);
+
+            const result = checkGuides(l.x, l.y, l.id, current, side, snappingRef.current);
+            setActiveGuides({
+              vertical: result.activeVert,
+              horizontal: result.activeHoriz,
+              isCrosshair: result.isCrosshair,
+            });
+
             if (origin.type === "text") {
               return {
                 ...(l as TextLayer),
@@ -543,16 +676,41 @@ function StudioPage() {
             }
             return { ...l, width };
           }
+
+          // Mode === "rotate"
           const cx = rect.left + (origin.x / 100) * rect.width;
           const cy = rect.top + (origin.y / 100) * rect.height;
           const angle = (Math.atan2(event.clientY - cy, event.clientX - cx) * 180) / Math.PI + 90;
-          return { ...l, rotation: Math.round(angle) };
+          let roundedAngle = Math.round(angle);
+
+          // Angle snapping to 0, 45, 90, 135, 180, 225, 270, 315
+          const SNAP_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315, 360];
+          for (const sa of SNAP_ANGLES) {
+            if (Math.abs(roundedAngle - sa) <= 3.5) {
+              if (snappingRef.current) {
+                roundedAngle = (sa + 360) % 360;
+              }
+              break;
+            }
+          }
+
+          const result = checkGuides(l.x, l.y, l.id, current, side, snappingRef.current);
+          setActiveGuides({
+            vertical: result.activeVert,
+            horizontal: result.activeHoriz,
+            isCrosshair: result.isCrosshair,
+          });
+
+          return { ...l, rotation: roundedAngle };
         }),
       );
     };
+
     const onUp = () => {
       interaction.current = null;
+      setActiveGuides(null);
     };
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
@@ -561,7 +719,7 @@ function StudioPage() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, []);
+  }, [side]);
 
   /* ---------------- keyboard ---------------- */
   useEffect(() => {
@@ -733,11 +891,10 @@ function StudioPage() {
                   key={p.id}
                   type="button"
                   onClick={() => setProductId(p.id)}
-                  className={`flex w-52 shrink-0 items-center gap-3 rounded-xl border p-2 text-left transition lg:w-full ${
-                    active
-                      ? "border-[#FF5F1F] bg-[#FF5F1F]/10"
-                      : "border-brand-black/10 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] hover:border-brand-black/25 dark:hover:border-white/25"
-                  }`}
+                  className={`flex w-52 shrink-0 items-center gap-3 rounded-xl border p-2 text-left transition lg:w-full ${active
+                    ? "border-[#FF5F1F] bg-[#FF5F1F]/10"
+                    : "border-brand-black/10 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] hover:border-brand-black/25 dark:hover:border-white/25"
+                    }`}
                 >
                   <span className="grid h-14 w-12 shrink-0 place-items-center rounded-lg bg-brand-black/5 dark:bg-white/5">
                     <GarmentImage
@@ -769,31 +926,45 @@ function StudioPage() {
                   key={s}
                   type="button"
                   onClick={() => setSide(s)}
-                  className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
-                    side === s ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
-                  }`}
+                  className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${side === s ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                    }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2 text-xs text-brand-black/60 dark:text-zinc-400">
-              <span className="hidden sm:inline">Zoom</span>
+            <div className="flex items-center gap-3 text-xs text-brand-black/60 dark:text-zinc-400">
               <button
                 type="button"
-                onClick={() => setZoom((z) => clamp(z - 10, 60, 180))}
-                className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
+                onClick={() => setSnappingEnabled((s) => !s)}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-bold transition ${snappingEnabled
+                  ? "border-[#FF5F1F] bg-[#FF5F1F]/15 text-[#FF5F1F] ring-1 ring-[#FF5F1F]/30"
+                  : "border-brand-black/10 dark:border-white/10 text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                  }`}
+                title={snappingEnabled ? "Smart Alignment Snapping Active" : "Snapping Disabled"}
               >
-                −
+                <Magnet className="h-3.5 w-3.5" />
+                <span className="text-[11px]">Snap: {snappingEnabled ? "ON" : "OFF"}</span>
               </button>
-              <span className="w-12 text-center font-semibold text-brand-black dark:text-zinc-200">{zoom}%</span>
-              <button
-                type="button"
-                onClick={() => setZoom((z) => clamp(z + 10, 60, 180))}
-                className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
-              >
-                +
-              </button>
+
+              <div className="flex items-center gap-1">
+                <span className="hidden sm:inline">Zoom</span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => clamp(z - 10, 60, 180))}
+                  className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
+                >
+                  −
+                </button>
+                <span className="w-10 text-center font-semibold text-brand-black dark:text-zinc-200">{zoom}%</span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => clamp(z + 10, 60, 180))}
+                  className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
@@ -882,11 +1053,10 @@ function StudioPage() {
                     type="button"
                     aria-label={`Color ${c}`}
                     onClick={() => updateSelected({ color: c })}
-                    className={`h-5.5 w-5.5 rounded-full border-2 transition ${
-                      selected.color.toLowerCase() === c.toLowerCase()
-                        ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
-                        : "border-brand-black/20 dark:border-white/20 hover:scale-105"
-                    }`}
+                    className={`h-5.5 w-5.5 rounded-full border-2 transition ${selected.color.toLowerCase() === c.toLowerCase()
+                      ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
+                      : "border-brand-black/20 dark:border-white/20 hover:scale-105"
+                      }`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
@@ -907,11 +1077,10 @@ function StudioPage() {
                     type="button"
                     aria-label={`Shape color ${c}`}
                     onClick={() => updateSelected({ color: c })}
-                    className={`h-6 w-6 rounded-full border-2 transition ${
-                      selected.color.toLowerCase() === c.toLowerCase()
-                        ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
-                        : "border-brand-black/20 dark:border-white/20 hover:scale-105"
-                    }`}
+                    className={`h-6 w-6 rounded-full border-2 transition ${selected.color.toLowerCase() === c.toLowerCase()
+                      ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
+                      : "border-brand-black/20 dark:border-white/20 hover:scale-105"
+                      }`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
@@ -919,7 +1088,7 @@ function StudioPage() {
             </div>
           )}
 
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4 rounded-b-2xl bg-zinc-100/50 dark:bg-transparent">
+          <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4 rounded-b-2xl bg-env-spotlight min-h-[500px]">
             {/* Tool rail */}
             <div className="absolute left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-brand-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1b1b1f]/95 p-1.5 backdrop-blur shadow-md dark:shadow-none">
               <ToolButton
@@ -964,7 +1133,7 @@ function StudioPage() {
             </div>
 
             <div
-              className="relative"
+              className="relative z-10"
               style={{
                 width: "100%",
                 maxWidth: 460,
@@ -974,19 +1143,26 @@ function StudioPage() {
               onPointerDown={() => setSelectedId(null)}
             >
               <div className="relative aspect-[4/5] w-full">
+                {/* Ground Drop Shadow under Garment */}
+                <div
+                  className="pointer-events-none absolute bottom-1 left-1/2 h-8 w-[68%] -translate-x-1/2 rounded-[100%] bg-black/65 blur-md"
+                  style={{ transform: "translateX(-50%) scaleY(0.4)" }}
+                />
+
                 <GarmentImage
                   product={product}
                   side={side}
                   size={size}
                   color={color}
-                  className="absolute inset-0 h-full w-full"
+                  className="absolute inset-0 h-full w-full pointer-events-none z-0"
                 />
 
                 <div
                   ref={printRef}
-                  className="absolute inset-0 overflow-visible rounded-[4px] outline-1 outline-dashed outline-white/10"
+                  className="absolute inset-0 z-20 overflow-visible rounded-lg outline-1 outline-dashed outline-white/10"
                   aria-label="Full garment customization canvas"
                 >
+                  <SmartGuidesOverlay activeGuides={activeGuides} />
                   {sideLayers.map((layer) => (
                     <LayerView
                       key={layer.id}
@@ -1000,6 +1176,7 @@ function StudioPage() {
                       onRotate={(e) => beginInteraction(e, "rotate", layer)}
                       onDelete={() => removeLayer(layer.id)}
                       onDuplicate={() => duplicateLayer(layer.id)}
+                      onUpdateText={(text) => updateSelected({ text })}
                     />
                   ))}
                 </div>
@@ -1055,25 +1232,190 @@ function StudioPage() {
 
         {/* Right column */}
         <div className="space-y-4">
-          <Panel number={2} title="Garment colour">
-            <div className="grid grid-cols-5 gap-2.5">
-              {ALL_APPAREL_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={COLOR_NAMES[c] ?? c}
-                  aria-label={COLOR_NAMES[c] ?? c}
-                  onClick={() => setColor(c)}
-                  className={`aspect-square rounded-full border-2 transition ${
-                    color === c
-                      ? "border-[#FF5F1F] ring-2 ring-[#FF5F1F]/30"
-                      : "border-brand-black/15 dark:border-white/15 hover:border-brand-black/40 dark:hover:border-white/40"
+          <Panel number={2} title="Garment colour & mixture">
+            {/* Color mode tabs */}
+            <div className="mb-3 flex rounded-lg bg-brand-black/5 dark:bg-white/5 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setColorTab("solid")}
+                className={`flex-1 rounded-md py-1.5 font-bold transition ${colorTab === "solid"
+                  ? "bg-[#FF5F1F] text-white shadow-xs"
+                  : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
                   }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+              >
+                Solid
+              </button>
+              <button
+                type="button"
+                onClick={() => setColorTab("gradients")}
+                className={`flex-1 rounded-md py-1.5 font-bold transition ${colorTab === "gradients"
+                  ? "bg-[#FF5F1F] text-white shadow-xs"
+                  : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                  }`}
+              >
+                Mixtures
+              </button>
+              <button
+                type="button"
+                onClick={() => setColorTab("custom")}
+                className={`flex-1 rounded-md py-1.5 font-bold transition ${colorTab === "custom"
+                  ? "bg-[#FF5F1F] text-white shadow-xs"
+                  : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                  }`}
+              >
+                Mixer
+              </button>
             </div>
-            <p className="mt-2 text-xs text-brand-black/60 dark:text-zinc-400">{colorName}</p>
+
+            {/* TAB 1: SOLID PALETTE */}
+            {colorTab === "solid" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-5 gap-2.5">
+                  {ALL_APPAREL_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      title={COLOR_NAMES[c] ?? c}
+                      aria-label={COLOR_NAMES[c] ?? c}
+                      onClick={() => setColor(c)}
+                      className={`aspect-square rounded-full border-2 transition ${color === c
+                        ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/30"
+                        : "border-brand-black/15 dark:border-white/15 hover:scale-105"
+                        }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+                {/* Custom Solid Picker */}
+                <div className="flex items-center gap-2 rounded-lg border border-brand-black/10 dark:border-white/10 p-1.5 bg-brand-black/[0.02] dark:bg-white/[0.02]">
+                  <input
+                    type="color"
+                    value={color.startsWith("#") ? color : "#FF5F1F"}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent"
+                    title="Pick custom solid shade"
+                  />
+                  <input
+                    type="text"
+                    value={color.startsWith("#") ? color : ""}
+                    onChange={(e) => setColor(e.target.value)}
+                    placeholder="Custom #HEX"
+                    className="flex-1 bg-transparent text-xs font-semibold uppercase outline-none text-brand-black dark:text-white"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: PRESET GRADIENT MIXTURES */}
+            {colorTab === "gradients" && (
+              <div className="grid grid-cols-3 gap-2">
+                {GRADIENT_MIXTURES.map((g) => (
+                  <button
+                    key={g.name}
+                    type="button"
+                    title={g.name}
+                    onClick={() => setColor(g.value)}
+                    className={`group flex flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition ${color === g.value
+                      ? "border-[#FF5F1F] bg-[#FF5F1F]/10 ring-2 ring-[#FF5F1F]/30"
+                      : "border-brand-black/10 dark:border-white/10 hover:border-[#FF5F1F]/50"
+                      }`}
+                  >
+                    <div
+                      className="h-8 w-8 rounded-full border border-white/20 shadow-xs transition group-hover:scale-105"
+                      style={{ background: g.value }}
+                    />
+                    <span className="truncate text-[10px] font-bold text-brand-black dark:text-zinc-300">
+                      {g.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* TAB 3: DUAL COLOR MIXER */}
+            {colorTab === "custom" && (
+              <div className="space-y-3 rounded-xl border border-brand-black/10 dark:border-white/10 p-3 bg-brand-black/[0.02] dark:bg-white/[0.02]">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-brand-black/60 dark:text-zinc-400">
+                      Color 1
+                    </label>
+                    <div className="flex items-center gap-1.5 rounded-lg border border-brand-black/15 dark:border-white/15 p-1.5 bg-white dark:bg-[#1b1b1f]">
+                      <input
+                        type="color"
+                        value={mixColor1}
+                        onChange={(e) => setMixColor1(e.target.value)}
+                        className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent"
+                      />
+                      <span className="text-[10px] font-mono font-bold uppercase text-brand-black dark:text-white truncate">
+                        {mixColor1}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-brand-black/60 dark:text-zinc-400">
+                      Color 2
+                    </label>
+                    <div className="flex items-center gap-1.5 rounded-lg border border-brand-black/15 dark:border-white/15 p-1.5 bg-white dark:bg-[#1b1b1f]">
+                      <input
+                        type="color"
+                        value={mixColor2}
+                        onChange={(e) => setMixColor2(e.target.value)}
+                        className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent"
+                      />
+                      <span className="text-[10px] font-mono font-bold uppercase text-brand-black dark:text-white truncate">
+                        {mixColor2}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-brand-black/60 dark:text-zinc-400">
+                    Blend Direction
+                  </label>
+                  <select
+                    value={mixType}
+                    onChange={(e) => setMixType(e.target.value as any)}
+                    className="w-full rounded-lg border border-brand-black/15 dark:border-white/15 bg-white dark:bg-[#1b1b1f] px-2.5 py-1.5 text-xs font-semibold text-brand-black dark:text-white outline-none focus:border-[#FF5F1F]"
+                  >
+                    <option value="135deg">Diagonal (135°)</option>
+                    <option value="180deg">Vertical (Top to Bottom)</option>
+                    <option value="90deg">Horizontal (Left to Right)</option>
+                    <option value="radial">Center Glow (Radial)</option>
+                  </select>
+                </div>
+
+                {/* Apply Custom Mixture */}
+                {(() => {
+                  const generatedMix =
+                    mixType === "radial"
+                      ? `radial-gradient(circle at center, ${mixColor1} 0%, ${mixColor2} 100%)`
+                      : `linear-gradient(${mixType}, ${mixColor1} 0%, ${mixColor2} 100%)`;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setColor(generatedMix)}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FF5F1F] py-2 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-[#ff7a45] shadow-xs"
+                    >
+                      <div
+                        className="h-4 w-4 rounded-full border border-white/40"
+                        style={{ background: generatedMix }}
+                      />
+                      Apply Custom Mixture
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between border-t border-brand-black/5 dark:border-white/10 pt-2 text-xs text-brand-black/60 dark:text-zinc-400">
+              <span>Active color:</span>
+              <span className="font-semibold text-brand-black dark:text-zinc-200 truncate max-w-[180px]">
+                {colorName}
+              </span>
+            </div>
           </Panel>
 
           <Panel number={3} title="Target group & size">
@@ -1091,11 +1433,10 @@ function StudioPage() {
                   key={s}
                   type="button"
                   onClick={() => setSize(s)}
-                  className={`rounded-lg border px-2 py-2 text-center transition ${
-                    size === s
-                      ? "border-[#FF5F1F] bg-[#FF5F1F] text-white"
-                      : "border-brand-black/10 dark:border-white/10 bg-brand-black/[0.03] dark:bg-white/[0.03] hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
-                  }`}
+                  className={`rounded-lg border px-2 py-2 text-center transition ${size === s
+                    ? "border-[#FF5F1F] bg-[#FF5F1F] text-white"
+                    : "border-brand-black/10 dark:border-white/10 bg-brand-black/[0.03] dark:bg-white/[0.03] hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
+                    }`}
                 >
                   <span className="block text-sm font-bold">{s}</span>
                   <span className="block text-[10px] opacity-70">{SIZE_CHESTS[s] ?? ""}</span>
@@ -1111,11 +1452,10 @@ function StudioPage() {
                   key={s}
                   type="button"
                   onClick={() => setSide(s)}
-                  className={`rounded-lg py-2 text-xs font-bold uppercase tracking-wider transition ${
-                    side === s
-                      ? "bg-[#FF5F1F] text-white"
-                      : "bg-brand-black/5 dark:bg-white/5 text-brand-black/80 dark:text-zinc-300 hover:bg-brand-black/10 dark:hover:bg-white/10"
-                  }`}
+                  className={`rounded-lg py-2 text-xs font-bold uppercase tracking-wider transition ${side === s
+                    ? "bg-[#FF5F1F] text-white"
+                    : "bg-brand-black/5 dark:bg-white/5 text-brand-black/80 dark:text-zinc-300 hover:bg-brand-black/10 dark:hover:bg-white/10"
+                    }`}
                 >
                   {s}
                 </button>
@@ -1205,9 +1545,8 @@ function StudioPage() {
                 .map((l) => (
                   <div
                     key={l.id}
-                    className={`group relative rounded-xl border p-2 ${
-                      l.id === selectedId ? "border-[#FF5F1F]" : "border-white/10"
-                    }`}
+                    className={`group relative rounded-xl border p-2 ${l.id === selectedId ? "border-[#FF5F1F]" : "border-white/10"
+                      }`}
                   >
                     <button
                       type="button"
@@ -1280,6 +1619,11 @@ function StudioHeader({
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-brand-black/5 dark:border-white/5 bg-white/90 dark:bg-[#0b0b0d]/90 px-6 py-2.5 backdrop-blur-md text-brand-black dark:text-white transition-colors">
       <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 font-display text-sm font-extrabold tracking-tight text-brand-black dark:text-white hover:opacity-80 transition mr-1">
+          <img src="/logo.png" alt="Custom On Logo" className="h-7 w-7 shrink-0 object-contain drop-shadow-xs" />
+          <span>CUSTOM<span className="text-brand-orange">ON</span></span>
+        </Link>
+        <span className="text-brand-black/30 dark:text-white/20">/</span>
         <span className="text-xs font-extrabold uppercase tracking-widest text-brand-orange">Canvas</span>
         <span className="text-brand-black/30 dark:text-white/20">/</span>
         <h1 className="truncate text-xs font-bold uppercase tracking-widest text-brand-black/70 dark:text-white/70">Interactive Builder</h1>
@@ -1368,9 +1712,8 @@ function ToolButton({
         e.stopPropagation();
         onClick();
       }}
-      className={`grid h-12 w-12 place-items-center rounded-lg text-[9px] font-semibold uppercase tracking-wide transition ${
-        active ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:bg-brand-black/5 dark:hover:bg-white/10 hover:text-brand-black dark:hover:text-white"
-      } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
+      className={`grid h-12 w-12 place-items-center rounded-lg text-[9px] font-semibold uppercase tracking-wide transition ${active ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:bg-brand-black/5 dark:hover:bg-white/10 hover:text-brand-black dark:hover:text-white"
+        } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
     >
       <span className="flex flex-col items-center gap-0.5">
         <Icon className="h-4 w-4" />
@@ -1398,9 +1741,8 @@ function CanvasAction({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-brand-black/10 dark:border-white/10 px-3 py-1.5 font-semibold transition ${
-        danger ? "text-red-500 dark:text-red-400 hover:border-red-400/60" : "text-brand-black/70 dark:text-zinc-300 hover:border-brand-black/30 dark:hover:border-white/35"
-      } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg border border-brand-black/10 dark:border-white/10 px-3 py-1.5 font-semibold transition ${danger ? "text-red-500 dark:text-red-400 hover:border-red-400/60" : "text-brand-black/70 dark:text-zinc-300 hover:border-brand-black/30 dark:hover:border-white/35"
+        } ${disabled ? "cursor-not-allowed opacity-35" : ""}`}
     >
       <Icon className="h-3.5 w-3.5" /> {label}
     </button>
@@ -1438,7 +1780,10 @@ function LayerView({
   onRotate: (e: ReactPointerEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onUpdateText?: (text: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+
   const wrapperStyle: CSSProperties = {
     left: `${layer.x}%`,
     top: `${layer.y}%`,
@@ -1454,24 +1799,55 @@ function LayerView({
       className={`absolute touch-none select-none ${selected ? "outline-1 outline-dashed outline-[#FF5F1F]" : ""}`}
       style={wrapperStyle}
       onPointerDown={onPointerDown}
+      onDoubleClick={() => {
+        if (layer.type === "text") setIsEditing(true);
+      }}
     >
       {layer.type === "text" && (
-        <div
-          style={{
-            fontFamily: layer.font,
-            color: layer.color,
-            fontSize: `${layer.fontSize * scale}px`,
-            fontWeight: layer.bold ? 800 : 500,
-            fontStyle: layer.italic ? "italic" : "normal",
-            textDecoration: layer.underline ? "underline" : "none",
-            textAlign: layer.align,
-            letterSpacing: `${layer.letterSpacing}px`,
-            lineHeight: 1.1,
-            wordBreak: "break-word",
-          }}
-        >
-          {layer.text}
-        </div>
+        isEditing ? (
+          <textarea
+            autoFocus
+            value={layer.text}
+            onChange={(e) => onUpdateText?.(e.target.value)}
+            onBlur={() => setIsEditing(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                setIsEditing(false);
+              }
+            }}
+            className="w-full resize-none border border-dashed border-[#FF5F1F] bg-transparent outline-none"
+            style={{
+              fontFamily: layer.font,
+              color: layer.color,
+              fontSize: `${layer.fontSize * scale}px`,
+              fontWeight: layer.bold ? 800 : 500,
+              fontStyle: layer.italic ? "italic" : "normal",
+              textDecoration: layer.underline ? "underline" : "none",
+              textAlign: layer.align,
+              letterSpacing: `${layer.letterSpacing}px`,
+              lineHeight: 1.1,
+            }}
+          />
+        ) : (
+          <div
+            className="cursor-pointer"
+            style={{
+              fontFamily: layer.font,
+              color: layer.color,
+              fontSize: `${layer.fontSize * scale}px`,
+              fontWeight: layer.bold ? 800 : 500,
+              fontStyle: layer.italic ? "italic" : "normal",
+              textDecoration: layer.underline ? "underline" : "none",
+              textAlign: layer.align,
+              letterSpacing: `${layer.letterSpacing}px`,
+              lineHeight: 1.1,
+              wordBreak: "break-word",
+            }}
+          >
+            {layer.text}
+          </div>
+        )
       )}
 
       {layer.type === "image" && (
@@ -1553,9 +1929,8 @@ function TextPanel({
         {layers.map((l) => (
           <div
             key={l.id}
-            className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${
-              l.id === active?.id ? "border-[#FF5F1F] bg-[#FF5F1F]/10" : "border-brand-black/10 dark:border-white/10"
-            }`}
+            className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${l.id === active?.id ? "border-[#FF5F1F] bg-[#FF5F1F]/10" : "border-brand-black/10 dark:border-white/10"
+              }`}
           >
             <button type="button" onClick={() => onSelect(l)} className="min-w-0 text-left">
               <span className="block truncate text-xs font-semibold text-brand-black dark:text-white">{l.text || "(empty)"}</span>
@@ -1675,11 +2050,10 @@ function TextPanel({
                   type="button"
                   aria-label={`Text colour ${c}`}
                   onClick={() => onChange(active.id, { color: c })}
-                  className={`h-6 w-6 rounded-full border-2 ${
-                    active.color.toLowerCase() === c.toLowerCase()
-                      ? "border-[#FF5F1F]"
-                      : "border-white/20"
-                  }`}
+                  className={`h-6 w-6 rounded-full border-2 ${active.color.toLowerCase() === c.toLowerCase()
+                    ? "border-[#FF5F1F]"
+                    : "border-white/20"
+                    }`}
                   style={{ backgroundColor: c }}
                 />
               ))}
@@ -1907,6 +2281,76 @@ function CartDrawer({
           </button>
         </div>
       </aside>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Smart Alignment Guides & Center Crosshair System Overlay          */
+/* ------------------------------------------------------------------ */
+
+export type GuideLine = {
+  id: string;
+  orientation: "vertical" | "horizontal";
+  position: number; // percentage 0..100
+  label: string;
+  isCenter?: boolean;
+};
+
+export type ActiveGuidesState = {
+  vertical: GuideLine | null;
+  horizontal: GuideLine | null;
+  isCrosshair: boolean;
+};
+
+function SmartGuidesOverlay({
+  activeGuides,
+}: {
+  activeGuides: ActiveGuidesState | null;
+}) {
+  if (!activeGuides) return null;
+  const { vertical, horizontal, isCrosshair } = activeGuides;
+  if (!vertical && !horizontal && !isCrosshair) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 overflow-visible">
+      {/* Vertical Guide Line */}
+      {vertical && (
+        <div
+          className="absolute bottom-0 top-0 w-[1.5px] -translate-x-1/2 bg-[#FF5F1F] dark:bg-[#00E5FF] shadow-[0_0_10px_rgba(255,95,31,0.9)] dark:shadow-[0_0_10px_rgba(0,229,255,0.9)] transition-opacity duration-75"
+          style={{ left: `${vertical.position}%` }}
+        >
+          <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded bg-[#FF5F1F] dark:bg-[#00E5FF] px-2 py-0.5 text-[9px] font-black uppercase text-white dark:text-black shadow-md tracking-wider whitespace-nowrap">
+            {vertical.label}
+          </div>
+        </div>
+      )}
+
+      {/* Horizontal Guide Line */}
+      {horizontal && (
+        <div
+          className="absolute left-0 right-0 h-[1.5px] -translate-y-1/2 bg-[#FF5F1F] dark:bg-[#00E5FF] shadow-[0_0_10px_rgba(255,95,31,0.9)] dark:shadow-[0_0_10px_rgba(0,229,255,0.9)] transition-opacity duration-75"
+          style={{ top: `${horizontal.position}%` }}
+        >
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 rounded bg-[#FF5F1F] dark:bg-[#00E5FF] px-2 py-0.5 text-[9px] font-black uppercase text-white dark:text-black shadow-md tracking-wider whitespace-nowrap">
+            {horizontal.label}
+          </div>
+        </div>
+      )}
+
+      {/* Exact Center Crosshair (+) System */}
+      {isCrosshair && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center">
+          <div className="relative grid h-12 w-12 place-items-center">
+            <div className="absolute inset-0 rounded-full border-2 border-[#FF5F1F] dark:border-[#00E5FF] animate-ping opacity-80" />
+            <div className="absolute inset-1 rounded-full border-2 border-[#FF5F1F] dark:border-[#00E5FF] bg-[#FF5F1F]/25 dark:bg-[#00E5FF]/25 backdrop-blur-xs" />
+            <span className="relative text-2xl font-black text-[#FF5F1F] dark:text-[#00E5FF]">+</span>
+          </div>
+          <span className="mt-1.5 rounded-md bg-[#FF5F1F] dark:bg-[#00E5FF] px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white dark:text-black shadow-xl">
+            EXACT CENTER (50%, 50%)
+          </span>
+        </div>
+      )}
     </div>
   );
 }
