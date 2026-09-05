@@ -81,6 +81,7 @@ export const cartItems = pgTable("cart_items", {
   frontPreview: text("front_preview"),
   backPreview: text("back_preview"),
   summary: text("summary").notNull(),
+  designState: jsonb("design_state").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -100,6 +101,7 @@ export const savedDesigns = pgTable("saved_designs", {
   customTextSize: integer("custom_text_size").notNull(),
   customImage: text("custom_image"),
   price: integer("price").notNull(),
+  designState: jsonb("design_state").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -169,4 +171,5 @@ export const orderItems = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   size: text("size").notNull(),
   targetGroup: text("target_group").notNull(),
+  designState: jsonb("design_state").$type<Record<string, unknown>>(),
 });

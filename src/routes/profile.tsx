@@ -77,31 +77,30 @@ function ProfilePage() {
         </section>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <Link
-            to="/studio"
+            to="/designs"
             className="rounded-3xl bg-white p-6 shadow-sm transition hover:-translate-y-1 dark:bg-white/5"
           >
             <Palette className="h-6 w-6 text-brand-orange" />
             <h2 className="mt-5 font-black uppercase">My designs</h2>
-            <p className="mt-2 text-sm opacity-60">Create or continue a custom garment.</p>
+            <p className="mt-2 text-sm opacity-60">View and edit your saved custom designs.</p>
+            <ArrowRight className="mt-5 h-4 w-4" />
+          </Link>
+          <Link
+            to="/orders"
+            className="rounded-3xl bg-white p-6 shadow-sm transition hover:-translate-y-1 dark:bg-white/5"
+          >
+            <ShoppingBag className="h-6 w-6 text-brand-orange" />
+            <h2 className="mt-5 font-black uppercase">My orders</h2>
+            <p className="mt-2 text-sm opacity-60">Track your order history and view purchase snapshots.</p>
             <ArrowRight className="mt-5 h-4 w-4" />
           </Link>
           <Link
             to="/cart"
             className="rounded-3xl bg-white p-6 shadow-sm transition hover:-translate-y-1 dark:bg-white/5"
           >
-            <ShoppingBag className="h-6 w-6 text-brand-orange" />
-            <h2 className="mt-5 font-black uppercase">My cart</h2>
-            <p className="mt-2 text-sm opacity-60">Review your customized products.</p>
-            <ArrowRight className="mt-5 h-4 w-4" />
-          </Link>
-          <Link
-            to="/dashboard"
-            search={{ tab: "orders" }}
-            className="rounded-3xl bg-white p-6 shadow-sm transition hover:-translate-y-1 dark:bg-white/5"
-          >
             <UserRound className="h-6 w-6 text-brand-orange" />
-            <h2 className="mt-5 font-black uppercase">My orders</h2>
-            <p className="mt-2 text-sm opacity-60">Track your order history.</p>
+            <h2 className="mt-5 font-black uppercase">My cart</h2>
+            <p className="mt-2 text-sm opacity-60">Review items in your cart.</p>
             <ArrowRight className="mt-5 h-4 w-4" />
           </Link>
         </div>

@@ -3,8 +3,6 @@ import { useMemo, useState, useEffect } from "react";
 import { PageShell } from "@/components/page-shell";
 import {
   CATEGORIES,
-  ALL_APPAREL_COLORS,
-  getColorName,
   STANDARD_APPAREL_SIZES,
   type Category,
   type Product,
@@ -23,7 +21,7 @@ export const Route = createFileRoute("/products")({
       {
         name: "description",
         content:
-          "Browse premium custom T-shirts, hoodies, polos, and oversized T-shirts. Filter by category, size, color, and price.",
+          "Browse premium custom T-shirts, hoodies, polos, and oversized T-shirts. Filter by category, size, and price.",
       },
       { property: "og:title", content: "Shop Custom Apparel — Custom On" },
       {
@@ -36,7 +34,6 @@ export const Route = createFileRoute("/products")({
 });
 
 const ALL_SIZES = STANDARD_APPAREL_SIZES;
-const ALL_COLORS = ALL_APPAREL_COLORS;
 
 function ProductsPage() {
   const { user } = useAuth();
@@ -49,7 +46,6 @@ function ProductsPage() {
     });
   }, []);
   const [size, setSize] = useState<string | null>(null);
-  const [color, setColor] = useState<string | null>(null);
   const [maxPrice, setMaxPrice] = useState(60);
   // Search & Sorting States
   type SortMode = "featured" | "price-asc" | "price-desc" | "name";
@@ -96,7 +92,6 @@ function ProductsPage() {
     const result = catalogProducts
       .filter((p) => category === "All" || p.category === category)
       .filter((p) => !size || p.sizes.includes(size))
-      .filter((p) => !color || p.colors.includes(color))
       .filter((p) => p.price <= maxPrice)
       .filter(
         (p) =>
@@ -112,7 +107,7 @@ function ProductsPage() {
       result.sort((a, b) => a.name.localeCompare(b.name));
     }
     return result;
-  }, [catalogProducts, category, size, color, maxPrice, searchQuery, sortBy]);
+  }, [catalogProducts, category, size, maxPrice, searchQuery, sortBy]);
 
   return (
     <PageShell>
@@ -202,26 +197,6 @@ function ProductsPage() {
                     >
                       {s}
                     </button>
-                  ))}
-                </div>
-              </FilterGroup>
-
-              <FilterGroup title="Color">
-                <div className="flex flex-wrap gap-2">
-                  {ALL_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      title={getColorName(c)}
-                      aria-label={`Color ${getColorName(c)}`}
-                      onClick={() => setColor(color === c ? null : c)}
-                      className={`size-8 rounded-full border-2 transition ${
-                        color === c
-                          ? "border-brand-orange ring-2 ring-brand-orange/30 scale-105"
-                          : "border-brand-black/15 hover:border-brand-black/40"
-                      }`}
-                      style={{ background: c }}
-                    />
                   ))}
                 </div>
               </FilterGroup>
@@ -320,20 +295,11 @@ function ProductsPage() {
                         <p className="mt-2 text-xs text-brand-black/50 leading-relaxed truncate">
                           {p.blurb}
                         </p>
-                        <div className="mt-3 flex items-center gap-2">
-                          {p.colors.slice(0, 4).map((c) => (
-                            <span
-                              key={c}
-                              className="size-3.5 rounded-full border border-brand-black/10"
-                              style={{ background: c }}
-                            />
-                          ))}
-                        </div>
                         {user?.role === "shop-owner" ? (
                           <Link
                             to="/dashboard"
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-4 block bg-brand-orange py-2.5 text-center text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-brand-black"
+                            className="mt-4 block rounded-xl bg-brand-orange py-3 text-center text-xs font-extrabold uppercase tracking-wider text-white transition-colors hover:bg-brand-black"
                           >
                             Manage this blank
                           </Link>
@@ -342,9 +308,9 @@ function ProductsPage() {
                             to="/studio"
                             search={{ productId: p.id }}
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-4 block border border-brand-black/10 py-2.5 text-center text-[10px] font-bold uppercase tracking-widest transition-colors hover:bg-brand-black hover:text-white"
+                            className="mt-4 block rounded-xl bg-brand-black py-3 text-center text-xs font-extrabold uppercase tracking-wider text-white transition-all hover:bg-brand-orange shadow-sm hover:shadow-md"
                           >
-                            Customize this
+                            Customize & Choose Color
                           </Link>
                         )}
                       </article>

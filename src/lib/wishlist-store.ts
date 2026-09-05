@@ -6,6 +6,8 @@ import {
   toggleCustomerWishlist,
 } from "./db/app-service";
 
+import type { FullDesignState } from "./working-design-store";
+
 export interface SavedDesign {
   id: string;
   date: string;
@@ -19,6 +21,7 @@ export interface SavedDesign {
   customTextSize: number;
   customImage: string | null;
   price: number;
+  designState?: FullDesignState | Record<string, unknown> | null;
 }
 
 export function getWishlistProducts(_username?: string): Promise<string[]> {

@@ -15,8 +15,10 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DesignsRouteImport } from './routes/designs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OrderReviewRouteImport } from './routes/order-review'
+import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -53,6 +55,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DesignsRoute = DesignsRouteImport.update({
+  id: '/designs',
+  path: '/designs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -61,6 +68,11 @@ const LoginRoute = LoginRouteImport.update({
 const OrderReviewRoute = OrderReviewRouteImport.update({
   id: '/order-review',
   path: '/order-review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -96,8 +108,10 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/designs': typeof DesignsRoute
   '/login': typeof LoginRoute
   '/order-review': typeof OrderReviewRoute
+  '/orders': typeof OrdersRoute
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
@@ -111,8 +125,10 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/designs': typeof DesignsRoute
   '/login': typeof LoginRoute
   '/order-review': typeof OrderReviewRoute
+  '/orders': typeof OrdersRoute
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
@@ -127,8 +143,10 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/designs': typeof DesignsRoute
   '/login': typeof LoginRoute
   '/order-review': typeof OrderReviewRoute
+  '/orders': typeof OrdersRoute
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
@@ -144,8 +162,10 @@ export interface FileRouteTypes {
     | '/cart'
     | '/contact'
     | '/dashboard'
+    | '/designs'
     | '/login'
     | '/order-review'
+    | '/orders'
     | '/pricing'
     | '/products'
     | '/profile'
@@ -159,8 +179,10 @@ export interface FileRouteTypes {
     | '/cart'
     | '/contact'
     | '/dashboard'
+    | '/designs'
     | '/login'
     | '/order-review'
+    | '/orders'
     | '/pricing'
     | '/products'
     | '/profile'
@@ -174,8 +196,10 @@ export interface FileRouteTypes {
     | '/cart'
     | '/contact'
     | '/dashboard'
+    | '/designs'
     | '/login'
     | '/order-review'
+    | '/orders'
     | '/pricing'
     | '/products'
     | '/profile'
@@ -190,8 +214,10 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
+  DesignsRoute: typeof DesignsRoute
   LoginRoute: typeof LoginRoute
   OrderReviewRoute: typeof OrderReviewRoute
+  OrdersRoute: typeof OrdersRoute
   PricingRoute: typeof PricingRoute
   ProductsRoute: typeof ProductsRoute
   ProfileRoute: typeof ProfileRoute
@@ -243,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/designs': {
+      id: '/designs'
+      path: '/designs'
+      fullPath: '/designs'
+      preLoaderRoute: typeof DesignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -255,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/order-review'
       fullPath: '/order-review'
       preLoaderRoute: typeof OrderReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -302,8 +342,10 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
+  DesignsRoute: DesignsRoute,
   LoginRoute: LoginRoute,
   OrderReviewRoute: OrderReviewRoute,
+  OrdersRoute: OrdersRoute,
   PricingRoute: PricingRoute,
   ProductsRoute: ProductsRoute,
   ProfileRoute: ProfileRoute,

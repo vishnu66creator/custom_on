@@ -5,6 +5,10 @@ import { useAuth, type Role } from "@/lib/auth";
 import { User as UserIcon, Store as StoreIcon, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    mode: search.mode as string | undefined,
+    signup: search.signup as string | undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Log In — Custom On" },
@@ -20,7 +24,10 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { user, login, registerUser, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [isRegistering, setIsRegistering] = useState(false);
+  const searchParams = Route.useSearch();
+  const [isRegistering, setIsRegistering] = useState(
+    searchParams.mode === "signup" || searchParams.signup === "true"
+  );
   const [role, setRole] = useState<Role>("customer");
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");

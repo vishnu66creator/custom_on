@@ -6,6 +6,8 @@ import {
   setCustomerCartQuantity,
 } from "./db/app-service";
 
+import type { FullDesignState } from "./working-design-store";
+
 export type CartItem = {
   id: string;
   productId: string;
@@ -19,6 +21,7 @@ export type CartItem = {
   frontPreview: string | null;
   backPreview: string | null;
   summary: string;
+  designState?: FullDesignState | Record<string, unknown> | null;
 };
 
 export function getCart(): Promise<CartItem[]> {
