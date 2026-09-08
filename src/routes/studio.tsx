@@ -23,6 +23,7 @@ import {
   Layers,
   Magnet,
   MousePointer2,
+  Move,
   Redo2,
   RotateCw,
   Save,
@@ -40,6 +41,7 @@ import {
 import { toast } from "sonner";
 
 import { ALL_APPAREL_COLORS, PRODUCTS, STANDARD_APPAREL_SIZES, type Product } from "@/lib/products";
+import { FONTS, FONT_CATEGORIES, getFontLabel, type FontCategory } from "@/lib/fonts";
 import {
   GarmentImage,
   contrastInk,
@@ -61,6 +63,17 @@ import { placeOrder } from "@/lib/orders-store";
 import { saveDesignToWishlist } from "@/lib/wishlist-store";
 import { useAuth } from "@/lib/auth";
 import { SiteHeader } from "@/components/site-header";
+import {
+  saveWorkingDesign,
+  getWorkingDesign,
+  clearWorkingDesign,
+  saveProductDraft,
+  getProductDraft,
+  getAllProductDrafts,
+  clearProductDraft,
+  type FullDesignState,
+} from "@/lib/working-design-store";
+import { getSavedDesignById } from "@/lib/db/app-service";
 
 export const Route = createFileRoute("/studio")({
   validateSearch: (
@@ -74,6 +87,8 @@ export const Route = createFileRoute("/studio")({
     textColor?: string | undefined;
     fontSize?: string | undefined;
     graphic?: string | undefined;
+    designId?: string | undefined;
+    cartItemId?: string | undefined;
   } => {
     const str = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : undefined);
     const out: Record<string, string> = {};
@@ -86,6 +101,8 @@ export const Route = createFileRoute("/studio")({
       "textColor",
       "fontSize",
       "graphic",
+      "designId",
+      "cartItemId",
     ]) {
       const value = str(search[key]);
       if (value) out[key] = value;
@@ -147,34 +164,6 @@ const GRADIENT_MIXTURES = [
   { name: "Midnight Stealth", value: "linear-gradient(135deg, #1F2937 0%, #111827 100%)" },
   { name: "Cotton Candy", value: "linear-gradient(135deg, #F472B6 0%, #38BDF8 100%)" },
   { name: "Center Spotlight", value: "radial-gradient(circle at center, #FF5F1F 0%, #111827 100%)" },
-];
-
-const FONTS = [
-  { label: "Plus Jakarta Sans", value: "'Plus Jakarta Sans', sans-serif" },
-  { label: "Inter", value: "'Inter', sans-serif" },
-  { label: "Bebas Neue", value: "'Bebas Neue', sans-serif" },
-  { label: "Syne", value: "'Syne', sans-serif" },
-  { label: "Orbitron", value: "'Orbitron', sans-serif" },
-  { label: "Russo One", value: "'Russo One', sans-serif" },
-  { label: "Righteous", value: "'Righteous', display" },
-  { label: "Bungee", value: "'Bungee', display" },
-  { label: "Monoton", value: "'Monoton', display" },
-  { label: "Abril Fatface", value: "'Abril Fatface', display" },
-  { label: "Playfair Display", value: "'Playfair Display', serif" },
-  { label: "Cinzel", value: "'Cinzel', serif" },
-  { label: "Old English", value: "'UnifrakturMaguntia', serif" },
-  { label: "Pirata One", value: "'Pirata One', display" },
-  { label: "Great Vibes", value: "'Great Vibes', cursive" },
-  { label: "Dancing Script", value: "'Dancing Script', cursive" },
-  { label: "Pacifico", value: "'Pacifico', cursive" },
-  { label: "Satisfy", value: "'Satisfy', cursive" },
-  { label: "Sacramento", value: "'Sacramento', cursive" },
-  { label: "Allura", value: "'Allura', cursive" },
-  { label: "Alex Brush", value: "'Alex Brush', cursive" },
-  { label: "Kaushan Script", value: "'Kaushan Script', cursive" },
-  { label: "Caveat", value: "'Caveat', cursive" },
-  { label: "Permanent Marker", value: "'Permanent Marker', cursive" },
-  { label: "Press Start 2P", value: "'Press Start 2P', monospace" },
 ];
 
 const INK_COLORS = [
@@ -264,6 +253,10 @@ function StudioPage() {
   const { user } = useAuth();
 
   const products = PRODUCTS;
+  const [productDrafts, setProductDrafts] = useState<Record<string, FullDesignState>>(() => {
+    return getAllProductDrafts();
+  });
+
   const [productId, setProductId] = useState<string>(
     () => products.find((p) => p.id === search.productId)?.id ?? products[0]!.id,
   );
@@ -281,6 +274,8 @@ function StudioPage() {
 
   const [layers, setLayers] = useState<Layer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [previewFont, setPreviewFont] = useState<string | null>(null);
+  const [previewFontSize, setPreviewFontSize] = useState<number | null>(null);
   const [past, setPast] = useState<Layer[][]>([]);
   const [future, setFuture] = useState<Layer[][]>([]);
 
@@ -319,6 +314,13 @@ function StudioPage() {
     [layers, selectedId, side],
   );
 
+  /* ---------------- pricing ---------------- */
+  const hasFront = layers.some((l) => l.side === "front");
+  const hasBack = layers.some((l) => l.side === "back");
+  const customization = (hasFront ? FRONT_PRINT_FEE : 0) + (hasBack ? BACK_PRINT_FEE : 0);
+  const unitPrice = product.price + customization;
+  const total = unitPrice * quantity;
+
   /* ---------------- cart sync ---------------- */
   useEffect(() => {
     let active = true;
@@ -332,34 +334,222 @@ function StudioPage() {
     };
   }, []);
 
-  /* ---------------- deep link hydration ---------------- */
+  /* ---------------- working design auto-sync ---------------- */
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    saveWorkingDesign({
+      version: 1,
+      productId,
+      color,
+      colorName,
+      size,
+      targetGroup,
+      side,
+      layers,
+      quantity,
+      unitPrice,
+    });
+  }, [productId, color, colorName, size, targetGroup, side, layers, quantity, unitPrice]);
+
+  /* ---------------- design restoration & hydration ---------------- */
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
-    if (!search.text) return;
-    const parsedSize = Number(search.fontSize);
-    setLayers([
-      {
-        id: uid(),
-        type: "text",
-        side: "front",
-        x: 50,
-        y: 42,
-        width: 84,
-        rotation: 0,
-        opacity: 1,
-        text: search.text,
-        font: search.font ?? FONTS[0]!.value,
-        color: search.textColor ?? "#0A0A0A",
-        fontSize: Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 40,
-        bold: true,
-        italic: false,
-        underline: false,
-        align: "center",
-        letterSpacing: 0,
-      },
-    ]);
-  }, [search.text, search.font, search.textColor, search.fontSize]);
+
+    async function hydrate() {
+      // 1. Explicit saved design ID
+      if (search.designId) {
+        try {
+          const saved = await getSavedDesignById({ data: { id: search.designId! } });
+          if (saved) {
+            const ds = saved.designState as FullDesignState | null;
+            if (ds && Array.isArray(ds.layers)) {
+              if (ds.productId) {
+                setProductId(ds.productId);
+                saveProductDraft(ds.productId, ds);
+                setProductDrafts((prev) => ({ ...prev, [ds.productId]: ds }));
+              }
+              if (ds.color) setColor(ds.color);
+              if (ds.size) setSize(ds.size);
+              if (ds.targetGroup) setTargetGroup(ds.targetGroup);
+              if (ds.side) setSide(ds.side);
+              setLayers(ds.layers);
+              toast.success(`Loaded saved design: "${saved.productName}"`);
+              return;
+            } else {
+              if (saved.productId) setProductId(saved.productId);
+              if (saved.shirtColor) setColor(saved.shirtColor);
+              const restoredLayers: Layer[] = [];
+              if (saved.customText) {
+                restoredLayers.push({
+                  id: uid(),
+                  type: "text",
+                  side: "front",
+                  x: 50,
+                  y: 42,
+                  width: 84,
+                  rotation: 0,
+                  opacity: 1,
+                  text: saved.customText,
+                  font: saved.customTextFont || FONTS[0]!.value,
+                  color: saved.customTextColor || "#0A0A0A",
+                  fontSize: saved.customTextSize || 40,
+                  bold: true,
+                  italic: false,
+                  underline: false,
+                  align: "center",
+                  letterSpacing: 0,
+                });
+              }
+              if (saved.customImage) {
+                restoredLayers.push({
+                  id: uid(),
+                  type: "image",
+                  side: "front",
+                  x: 50,
+                  y: 50,
+                  width: 60,
+                  rotation: 0,
+                  opacity: 1,
+                  src: saved.customImage,
+                  name: "Custom Graphic",
+                });
+              }
+              setLayers(restoredLayers);
+              toast.success(`Loaded saved design: "${saved.productName}"`);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load saved design", err);
+          toast.error("Unable to load the requested saved design.");
+        }
+      }
+
+      // 2. Explicit cart item ID
+      if (search.cartItemId) {
+        try {
+          const cartItems = await getCart();
+          const item = cartItems.find((c) => c.id === search.cartItemId);
+          if (item) {
+            const ds = item.designState as FullDesignState | null;
+            if (ds && Array.isArray(ds.layers)) {
+              if (ds.productId) {
+                setProductId(ds.productId);
+                saveProductDraft(ds.productId, ds);
+                setProductDrafts((prev) => ({ ...prev, [ds.productId]: ds }));
+              }
+              if (ds.color) setColor(ds.color);
+              if (ds.size) setSize(ds.size);
+              if (ds.targetGroup) setTargetGroup(ds.targetGroup);
+              if (ds.side) setSide(ds.side);
+              setLayers(ds.layers);
+              toast.info(`Editing cart item: "${item.productName}"`);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load cart item for editing", err);
+        }
+      }
+
+      // 3. Legacy deep link search params
+      if (search.text) {
+        const parsedSize = Number(search.fontSize);
+        setLayers([
+          {
+            id: uid(),
+            type: "text",
+            side: "front",
+            x: 50,
+            y: 42,
+            width: 84,
+            rotation: 0,
+            opacity: 1,
+            text: search.text,
+            font: search.font ?? FONTS[0]!.value,
+            color: search.textColor ?? "#0A0A0A",
+            fontSize: Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 40,
+            bold: true,
+            italic: false,
+            underline: false,
+            align: "center",
+            letterSpacing: 0,
+          },
+        ]);
+        return;
+      }
+
+      // 4. Saved working design from browser storage (Navigation persistence)
+      const working = getWorkingDesign();
+      if (working && Array.isArray(working.layers) && working.layers.length > 0) {
+        if (working.productId) setProductId(working.productId);
+        if (working.color) setColor(working.color);
+        if (working.size) setSize(working.size);
+        if (working.targetGroup) setTargetGroup(working.targetGroup);
+        if (working.side) setSide(working.side);
+        setLayers(working.layers);
+      }
+    }
+
+    void hydrate();
+  }, [
+    search.designId,
+    search.cartItemId,
+    search.text,
+    search.font,
+    search.textColor,
+    search.fontSize,
+  ]);
+
+  /* ---------------- product switching (draft isolation) ---------------- */
+  const handleSelectProduct = (targetId: string) => {
+    if (targetId === productId) return;
+
+    // 1. Save current product's active draft before switching
+    const currentDraft: FullDesignState = {
+      version: 1,
+      productId,
+      color,
+      colorName,
+      size,
+      targetGroup,
+      side,
+      layers,
+      quantity,
+      unitPrice,
+    };
+
+    saveProductDraft(productId, currentDraft);
+    const updatedDrafts = {
+      ...productDrafts,
+      [productId]: currentDraft,
+    };
+    setProductDrafts(updatedDrafts);
+
+    // 2. Set new active product ID
+    setProductId(targetId);
+
+    // 3. Load target product's draft (from state or session storage)
+    const targetDraft = updatedDrafts[targetId] ?? getProductDraft(targetId);
+    if (targetDraft && Array.isArray(targetDraft.layers)) {
+      setLayers(targetDraft.layers);
+      if (targetDraft.color) setColor(targetDraft.color);
+      if (targetDraft.size) setSize(targetDraft.size);
+      if (targetDraft.targetGroup) setTargetGroup(targetDraft.targetGroup);
+      if (targetDraft.side) setSide(targetDraft.side);
+    } else {
+      // Clean default state for new product!
+      setLayers([]);
+    }
+
+    // 4. Reset selection, preview states & undo/redo history for clean context
+    setSelectedId(null);
+    setPreviewFont(null);
+    setPreviewFontSize(null);
+    setPast([]);
+    setFuture([]);
+  };
 
   /* ---------------- history ---------------- */
   const commit = useCallback((updater: (current: Layer[]) => Layer[]) => {
@@ -520,7 +710,7 @@ function StudioPage() {
 
   /* ---------------- drag / resize / rotate ---------------- */
   const interaction = useRef<null | {
-    mode: "move" | "resize" | "rotate";
+    mode: "move" | "resize" | "resize-tl" | "resize-tr" | "resize-bl" | "resize-br" | "rotate";
     id: string;
     startX: number;
     startY: number;
@@ -530,7 +720,7 @@ function StudioPage() {
 
   const beginInteraction = (
     event: ReactPointerEvent,
-    mode: "move" | "resize" | "rotate",
+    mode: "move" | "resize" | "resize-tl" | "resize-tr" | "resize-bl" | "resize-br" | "rotate",
     layer: Layer,
   ) => {
     event.stopPropagation();
@@ -656,8 +846,10 @@ function StudioPage() {
             };
           }
 
-          if (mode === "resize") {
-            const scale = 1 + (dx / rect.width) * 2.2;
+          if (mode === "resize" || mode.startsWith("resize-")) {
+            const isLeft = mode === "resize-tl" || mode === "resize-bl";
+            const factor = isLeft ? -dx : dx;
+            const scale = 1 + (factor / rect.width) * 2.2;
             const width = clamp(origin.width * scale, 6, 200);
 
             const result = checkGuides(l.x, l.y, l.id, current, side, snappingRef.current);
@@ -761,13 +953,6 @@ function StudioPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [commit, redo, removeLayer, selectedId, undo]);
 
-  /* ---------------- pricing ---------------- */
-  const hasFront = layers.some((l) => l.side === "front");
-  const hasBack = layers.some((l) => l.side === "back");
-  const customization = (hasFront ? FRONT_PRINT_FEE : 0) + (hasBack ? BACK_PRINT_FEE : 0);
-  const unitPrice = product.price + customization;
-  const total = unitPrice * quantity;
-
   /* ---------------- actions ---------------- */
   const designSummary = () => {
     const bits: string[] = [];
@@ -789,25 +974,45 @@ function StudioPage() {
       navigate({ to: "/login" });
       return;
     }
-    await addToCart({
+    const fullState: FullDesignState = {
+      version: 1,
       productId: product.id,
-      productName: product.name,
       color,
       colorName,
       size,
       targetGroup,
+      side,
+      layers,
       quantity,
       unitPrice,
-      frontPreview: layers.some((l) => l.side === "front" && l.type === "image")
-        ? (layers.find((l) => l.side === "front" && l.type === "image") as ImageLayer).src
-        : null,
-      backPreview: layers.some((l) => l.side === "back" && l.type === "image")
-        ? (layers.find((l) => l.side === "back" && l.type === "image") as ImageLayer).src
-        : null,
-      summary: designSummary(),
-    });
-    toast.success(`${product.name} (${colorName}, ${size}) added to cart.`);
-    navigate({ to: "/cart" });
+    };
+    try {
+      await addToCart({
+        productId: product.id,
+        productName: product.name,
+        color,
+        colorName,
+        size,
+        targetGroup,
+        quantity,
+        unitPrice,
+        frontPreview: layers.some((l) => l.side === "front" && l.type === "image")
+          ? (layers.find((l) => l.side === "front" && l.type === "image") as ImageLayer).src
+          : null,
+        backPreview: layers.some((l) => l.side === "back" && l.type === "image")
+          ? (layers.find((l) => l.side === "back" && l.type === "image") as ImageLayer).src
+          : null,
+        summary: designSummary(),
+        designState: fullState,
+      });
+      saveWorkingDesign(fullState);
+      toast.success(`${product.name} (${colorName}, ${size}) added to cart.`);
+      navigate({ to: "/cart" });
+    } catch (err) {
+      console.error("Failed to add to cart", err);
+      const msg = err instanceof Error ? err.message : "Unable to add design to cart.";
+      toast.error(msg);
+    }
   };
 
   const handleSaveDesign = async () => {
@@ -816,22 +1021,74 @@ function StudioPage() {
       navigate({ to: "/login" });
       return;
     }
-    await saveDesignToWishlist(
-      {
-        productId: product.id,
-        productName: product.name,
-        shirtColor: color,
-        shirtColorName: colorName,
-        customText: firstText?.text ?? "",
-        customTextColor: firstText?.color ?? ink,
-        customTextFont: firstText?.font ?? FONTS[0]!.value,
-        customTextSize: Math.round(firstText?.fontSize ?? 40),
-        customImage: firstImage?.src ?? null,
-        price: unitPrice,
-      },
-      user?.username,
-    );
-    toast.success("Design saved to your account.");
+    const fullState: FullDesignState = {
+      version: 1,
+      productId: product.id,
+      color,
+      colorName,
+      size,
+      targetGroup,
+      side,
+      layers,
+      quantity,
+      unitPrice,
+    };
+    try {
+      await saveDesignToWishlist(
+        {
+          productId: product.id,
+          productName: product.name,
+          shirtColor: color,
+          shirtColorName: colorName,
+          customText: firstText?.text ?? (layers.length ? "Custom Design" : ""),
+          customTextColor: firstText?.color ?? ink,
+          customTextFont: firstText?.font ?? FONTS[0]!.value,
+          customTextSize: Math.round(firstText?.fontSize ?? 40),
+          customImage: firstImage?.src ?? null,
+          price: unitPrice,
+          designState: fullState,
+        },
+        user?.username,
+      );
+
+      // RESET ACTIVE PREVIEW ONLY AFTER SUCCESSFUL SAVE
+      setLayers([]);
+      setSelectedId(null);
+      setPreviewFont(null);
+      setPreviewFontSize(null);
+      setPast([]);
+      setFuture([]);
+
+      clearProductDraft(product.id);
+      setProductDrafts((prev) => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      });
+
+      toast.success(`Design saved to your account. Studio preview reset to clean ${product.name}.`);
+    } catch (err) {
+      console.error("Failed to save design", err);
+      const msg = err instanceof Error ? err.message : "Unable to save design. Please try again.";
+      // DO NOT CLEAR ACTIVE DESIGN IF SAVE FAILS!
+      toast.error(`Unable to save design. Your current design has not been cleared. (${msg})`);
+    }
+  };
+
+  const handleClearDesign = () => {
+    setLayers([]);
+    setSelectedId(null);
+    setPreviewFont(null);
+    setPreviewFontSize(null);
+    setPast([]);
+    setFuture([]);
+    clearProductDraft(product.id);
+    setProductDrafts((prev) => {
+      const next = { ...prev };
+      delete next[product.id];
+      return next;
+    });
+    toast.info(`Design reset to clean ${product.name}.`);
   };
 
   const [checkout, setCheckout] = useState({ name: "", address: "", phone: "" });
@@ -890,7 +1147,7 @@ function StudioPage() {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setProductId(p.id)}
+                  onClick={() => handleSelectProduct(p.id)}
                   className={`flex w-52 shrink-0 items-center gap-3 rounded-xl border p-2 text-left transition lg:w-full ${active
                     ? "border-[#FF5F1F] bg-[#FF5F1F]/10"
                     : "border-brand-black/10 dark:border-white/10 bg-white/60 dark:bg-white/[0.03] hover:border-brand-black/25 dark:hover:border-white/25"
@@ -917,322 +1174,282 @@ function StudioPage() {
           </div>
         </Panel>
 
-        {/* Canvas */}
-        <section className="order-first flex flex-col rounded-2xl border border-brand-black/5 dark:border-white/10 bg-white dark:bg-[#131316] shadow-sm dark:shadow-none lg:order-none transition-colors">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-brand-black/5 dark:border-white/10 p-3 sm:flex sm:justify-between">
-            <div className="inline-flex rounded-lg bg-brand-black/5 dark:bg-white/5 p-1">
-              {(["front", "back"] as GarmentSide[]).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSide(s)}
-                  className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${side === s ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
-                    }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-3 text-xs text-brand-black/60 dark:text-zinc-400">
-              <button
-                type="button"
-                onClick={() => setSnappingEnabled((s) => !s)}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-bold transition ${snappingEnabled
-                  ? "border-[#FF5F1F] bg-[#FF5F1F]/15 text-[#FF5F1F] ring-1 ring-[#FF5F1F]/30"
-                  : "border-brand-black/10 dark:border-white/10 text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
-                  }`}
-                title={snappingEnabled ? "Smart Alignment Snapping Active" : "Snapping Disabled"}
-              >
-                <Magnet className="h-3.5 w-3.5" />
-                <span className="text-[11px]">Snap: {snappingEnabled ? "ON" : "OFF"}</span>
-              </button>
-
-              <div className="flex items-center gap-1">
-                <span className="hidden sm:inline">Zoom</span>
-                <button
-                  type="button"
-                  onClick={() => setZoom((z) => clamp(z - 10, 60, 180))}
-                  className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
-                >
-                  −
-                </button>
-                <span className="w-10 text-center font-semibold text-brand-black dark:text-zinc-200">{zoom}%</span>
-                <button
-                  type="button"
-                  onClick={() => setZoom((z) => clamp(z + 10, 60, 180))}
-                  className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Contextual Quick Text & Layer Editor Bar */}
-          {selected && selected.type === "text" && (
-            <div className="flex flex-wrap items-center gap-2.5 border-b border-brand-black/10 dark:border-white/10 bg-brand-orange/10 dark:bg-[#FF5F1F]/15 px-4 py-2.5 transition-all">
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#FF5F1F] flex items-center gap-1.5 shrink-0">
-                <TypeIcon className="h-4 w-4" /> Quick Edit Text:
-              </span>
-
-              {/* Text Input */}
-              <input
-                type="text"
-                value={selected.text}
-                onChange={(e) => updateSelected({ text: e.target.value })}
-                placeholder="Enter text..."
-                className="min-w-[160px] flex-1 rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] px-3 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white shadow-xs"
-              />
-
-              {/* Font Family Dropdown */}
-              <select
-                value={selected.font}
-                onChange={(e) => updateSelected({ font: e.target.value })}
-                className="min-w-[140px] rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white shadow-xs"
-              >
-                {FONTS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Font Size Dropdown */}
-              <select
-                value={String(Math.round(selected.fontSize))}
-                onChange={(e) => updateSelected({ fontSize: Number(e.target.value) })}
-                className="w-22 rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white shadow-xs"
-              >
-                {Array.from(
-                  new Set([
-                    ...[16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 88, 104],
-                    Math.round(selected.fontSize),
-                  ]),
-                )
-                  .sort((a, b) => a - b)
-                  .map((s) => (
-                    <option key={s} value={s}>
-                      {s} px
-                    </option>
-                  ))}
-              </select>
-
-              {/* B / I / U Formatting Toggles */}
-              <div className="inline-flex overflow-hidden rounded-lg border border-brand-black/20 dark:border-white/20 bg-white dark:bg-[#1b1b1f] shadow-xs">
-                <button
-                  type="button"
-                  onClick={() => updateSelected({ bold: !selected.bold })}
-                  className={`px-2.5 py-1.5 transition ${selected.bold ? "bg-[#FF5F1F] text-white" : "text-brand-black/70 dark:text-zinc-300 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
-                  title="Bold"
-                >
-                  <Bold className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateSelected({ italic: !selected.italic })}
-                  className={`px-2.5 py-1.5 transition ${selected.italic ? "bg-[#FF5F1F] text-white" : "text-brand-black/70 dark:text-zinc-300 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
-                  title="Italic"
-                >
-                  <Italic className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateSelected({ underline: !selected.underline })}
-                  className={`px-2.5 py-1.5 transition ${selected.underline ? "bg-[#FF5F1F] text-white" : "text-brand-black/70 dark:text-zinc-300 hover:bg-brand-black/5 dark:hover:bg-white/10"}`}
-                  title="Underline"
-                >
-                  <Underline className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {/* Color Swatches */}
-              <div className="flex items-center gap-1.5 pl-1">
-                {INK_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    aria-label={`Color ${c}`}
-                    onClick={() => updateSelected({ color: c })}
-                    className={`h-5.5 w-5.5 rounded-full border-2 transition ${selected.color.toLowerCase() === c.toLowerCase()
-                      ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
-                      : "border-brand-black/20 dark:border-white/20 hover:scale-105"
-                      }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Shape Color Editor Bar */}
-          {selected && selected.type === "shape" && (
-            <div className="flex flex-wrap items-center gap-2.5 border-b border-brand-black/10 dark:border-white/10 bg-brand-orange/10 dark:bg-[#FF5F1F]/15 px-4 py-2.5 transition-all">
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#FF5F1F] flex items-center gap-1.5 shrink-0">
-                <Shapes className="h-4 w-4" /> Shape Color:
-              </span>
-              <div className="flex items-center gap-1.5">
-                {INK_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    aria-label={`Shape color ${c}`}
-                    onClick={() => updateSelected({ color: c })}
-                    className={`h-6 w-6 rounded-full border-2 transition ${selected.color.toLowerCase() === c.toLowerCase()
-                      ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
-                      : "border-brand-black/20 dark:border-white/20 hover:scale-105"
-                      }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4 rounded-b-2xl bg-env-spotlight min-h-[500px]">
-            {/* Tool rail */}
-            <div className="absolute left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-brand-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1b1b1f]/95 p-1.5 backdrop-blur shadow-md dark:shadow-none">
-              <ToolButton
-                icon={MousePointer2}
-                label="Select"
-                active={tool === "select"}
-                onClick={() => setTool("select")}
-              />
-              <ToolButton icon={TypeIcon} label="Text" active={tool === "text"} onClick={addText} />
-              <ToolButton
-                icon={Upload}
-                label="Upload"
-                active={tool === "image"}
-                onClick={() => fileRef.current?.click()}
-              />
-              <ToolButton
-                icon={Shapes}
-                label="Shapes"
-                active={tool === "shapes"}
-                onClick={() => setTool(tool === "shapes" ? "select" : "shapes")}
-              />
-              {tool === "shapes" && (
-                <div className="flex flex-col gap-1 border-t border-brand-black/10 dark:border-white/10 pt-1">
-                  <ToolButton icon={Square} label="Square" onClick={() => addShape("square")} />
-                  <ToolButton icon={Circle} label="Circle" onClick={() => addShape("circle")} />
-                  <ToolButton
-                    icon={Triangle}
-                    label="Triangle"
-                    onClick={() => addShape("triangle")}
-                  />
-                </div>
-              )}
-              <div className="mt-1 flex flex-col gap-1 border-t border-brand-black/10 dark:border-white/10 pt-1">
-                <ToolButton icon={Undo2} label="Undo" onClick={undo} disabled={past.length === 0} />
-                <ToolButton
-                  icon={Redo2}
-                  label="Redo"
-                  onClick={redo}
-                  disabled={future.length === 0}
-                />
-              </div>
-            </div>
-
-            <div
-              className="relative z-10"
-              style={{
-                width: "100%",
-                maxWidth: 460,
-                transform: `scale(${fit.scaleX * (zoom / 100)}, ${fit.scaleY * (zoom / 100)})`,
-                transformOrigin: "center center",
+        {/* Canvas & Text Section */}
+        <div className="order-first space-y-4 lg:order-none">
+          {/* Top Panel: Text & Font Properties */}
+          <Panel number={2} title="Text & font properties">
+            <TextPanel
+              layers={layers.filter((l): l is TextLayer => l.type === "text")}
+              selectedId={selectedId}
+              onSelect={(l) => {
+                setSide(l.side);
+                setSelectedId(l.id);
               }}
-              onPointerDown={() => setSelectedId(null)}
-            >
-              <div className="relative aspect-[4/5] w-full">
-                {/* Ground Drop Shadow under Garment */}
-                <div
-                  className="pointer-events-none absolute bottom-1 left-1/2 h-8 w-[68%] -translate-x-1/2 rounded-[100%] bg-black/65 blur-md"
-                  style={{ transform: "translateX(-50%) scaleY(0.4)" }}
-                />
+              onAdd={addText}
+              onDelete={removeLayer}
+              onChange={(id, patch) =>
+                commit((current) =>
+                  current.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)),
+                )
+              }
+              onPreviewFont={setPreviewFont}
+              previewFont={previewFont}
+              onPreviewFontSize={setPreviewFontSize}
+              previewFontSize={previewFontSize}
+            />
+          </Panel>
 
-                <GarmentImage
-                  product={product}
-                  side={side}
-                  size={size}
-                  color={color}
-                  className="absolute inset-0 h-full w-full pointer-events-none z-0"
-                />
-
-                <div
-                  ref={printRef}
-                  className="absolute inset-0 z-20 overflow-visible rounded-lg outline-1 outline-dashed outline-white/10"
-                  aria-label="Full garment customization canvas"
+          {/* Canvas */}
+          <section className="flex flex-col rounded-2xl border border-brand-black/5 dark:border-white/10 bg-white dark:bg-[#131316] shadow-sm dark:shadow-none transition-colors">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-brand-black/5 dark:border-white/10 p-3 sm:flex sm:justify-between">
+              <div className="inline-flex rounded-lg bg-brand-black/5 dark:bg-white/5 p-1">
+                {(["front", "back"] as GarmentSide[]).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSide(s)}
+                    className={`rounded-md px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${side === s ? "bg-[#FF5F1F] text-white" : "text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                      }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-brand-black/60 dark:text-zinc-400">
+                <button
+                  type="button"
+                  onClick={() => setSnappingEnabled((s) => !s)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-bold transition ${snappingEnabled
+                    ? "border-[#FF5F1F] bg-[#FF5F1F]/15 text-[#FF5F1F] ring-1 ring-[#FF5F1F]/30"
+                    : "border-brand-black/10 dark:border-white/10 text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                    }`}
+                  title={snappingEnabled ? "Smart Alignment Snapping Active" : "Snapping Disabled"}
                 >
-                  <SmartGuidesOverlay activeGuides={activeGuides} />
-                  {sideLayers.map((layer) => (
-                    <LayerView
-                      key={layer.id}
-                      layer={layer}
-                      selected={layer.id === selectedId}
-                      printHeight={
-                        printRef.current?.getBoundingClientRect().height ?? REFERENCE_HEIGHT
-                      }
-                      onPointerDown={(e) => beginInteraction(e, "move", layer)}
-                      onResize={(e) => beginInteraction(e, "resize", layer)}
-                      onRotate={(e) => beginInteraction(e, "rotate", layer)}
-                      onDelete={() => removeLayer(layer.id)}
-                      onDuplicate={() => duplicateLayer(layer.id)}
-                      onUpdateText={(text) => updateSelected({ text })}
+                  <Magnet className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">Snap: {snappingEnabled ? "ON" : "OFF"}</span>
+                </button>
+
+                <div className="flex items-center gap-1">
+                  <span className="hidden sm:inline">Zoom</span>
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => clamp(z - 10, 60, 180))}
+                    className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center font-semibold text-brand-black dark:text-zinc-200">{zoom}%</span>
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => clamp(z + 10, 60, 180))}
+                    className="h-7 w-7 rounded-md border border-brand-black/10 dark:border-white/10 hover:border-brand-black/30 dark:hover:border-white/30 text-brand-black dark:text-white"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+
+
+            {/* Quick Shape Color Editor Bar */}
+            {selected && selected.type === "shape" && (
+              <div className="flex flex-wrap items-center gap-2.5 border-b border-brand-black/10 dark:border-white/10 bg-brand-orange/10 dark:bg-[#FF5F1F]/15 px-4 py-2.5 transition-all">
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#FF5F1F] flex items-center gap-1.5 shrink-0">
+                  <Shapes className="h-4 w-4" /> Shape Color:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {INK_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-label={`Shape color ${c}`}
+                      onClick={() => updateSelected({ color: c })}
+                      className={`h-6 w-6 rounded-full border-2 transition ${selected.color.toLowerCase() === c.toLowerCase()
+                        ? "border-[#FF5F1F] scale-110 ring-2 ring-[#FF5F1F]/40"
+                        : "border-brand-black/20 dark:border-white/20 hover:scale-105"
+                        }`}
+                      style={{ backgroundColor: c }}
                     />
                   ))}
                 </div>
               </div>
+            )}
+
+            <div className="relative flex flex-1 items-center justify-center overflow-hidden p-4 rounded-b-2xl bg-env-spotlight min-h-[500px]">
+              {/* Tool rail */}
+              <div className="absolute left-3 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-brand-black/10 dark:border-white/10 bg-white/95 dark:bg-[#1b1b1f]/95 p-1.5 backdrop-blur shadow-md dark:shadow-none">
+                <ToolButton
+                  icon={MousePointer2}
+                  label="Select"
+                  active={tool === "select"}
+                  onClick={() => setTool("select")}
+                />
+                <ToolButton icon={TypeIcon} label="Text" active={tool === "text"} onClick={addText} />
+                <ToolButton
+                  icon={Upload}
+                  label="Upload"
+                  active={tool === "image"}
+                  onClick={() => fileRef.current?.click()}
+                />
+                <ToolButton
+                  icon={Shapes}
+                  label="Shapes"
+                  active={tool === "shapes"}
+                  onClick={() => setTool(tool === "shapes" ? "select" : "shapes")}
+                />
+                {tool === "shapes" && (
+                  <div className="flex flex-col gap-1 border-t border-brand-black/10 dark:border-white/10 pt-1">
+                    <ToolButton icon={Square} label="Square" onClick={() => addShape("square")} />
+                    <ToolButton icon={Circle} label="Circle" onClick={() => addShape("circle")} />
+                    <ToolButton
+                      icon={Triangle}
+                      label="Triangle"
+                      onClick={() => addShape("triangle")}
+                    />
+                  </div>
+                )}
+                <div className="mt-1 flex flex-col gap-1 border-t border-brand-black/10 dark:border-white/10 pt-1">
+                  <ToolButton icon={Undo2} label="Undo" onClick={undo} disabled={past.length === 0} />
+                  <ToolButton
+                    icon={Redo2}
+                    label="Redo"
+                    onClick={redo}
+                    disabled={future.length === 0}
+                  />
+                </div>
+              </div>
+
+              <div
+                key={`${product.id}-${side}`}
+                className="relative z-10"
+                style={{
+                  width: "100%",
+                  maxWidth: 460,
+                  transform: `scale(${fit.scaleX * (zoom / 100)}, ${fit.scaleY * (zoom / 100)})`,
+                  transformOrigin: "center center",
+                }}
+                onPointerDown={() => setSelectedId(null)}
+              >
+                <div className="relative aspect-[4/5] w-full">
+                  {/* Ground Drop Shadow under Garment */}
+                  <div
+                    className="pointer-events-none absolute bottom-1 left-1/2 h-8 w-[68%] -translate-x-1/2 rounded-[100%] bg-black/65 blur-md"
+                    style={{ transform: "translateX(-50%) scaleY(0.4)" }}
+                  />
+
+                  <GarmentImage
+                    product={product}
+                    side={side}
+                    size={size}
+                    color={color}
+                    className="absolute inset-0 h-full w-full pointer-events-none z-0"
+                  />
+
+                  <div
+                    ref={printRef}
+                    className="absolute inset-0 z-20 overflow-visible rounded-lg outline-1 outline-dashed outline-white/10"
+                    aria-label="Full garment customization canvas"
+                  >
+                    <SmartGuidesOverlay activeGuides={activeGuides} />
+                    {sideLayers.map((layer) => {
+                      const currentSideTextLayers = sideLayers.filter(
+                        (l): l is TextLayer => l.type === "text",
+                      );
+                      const activeTextLayer =
+                        currentSideTextLayers.find((l) => l.id === selectedId) ??
+                        currentSideTextLayers[0];
+
+                      const isPreviewTarget =
+                        previewFont !== null &&
+                        layer.type === "text" &&
+                        activeTextLayer !== undefined &&
+                        layer.id === activeTextLayer.id;
+
+                      const isSizePreviewTarget =
+                        previewFontSize !== null &&
+                        layer.type === "text" &&
+                        activeTextLayer !== undefined &&
+                        layer.id === activeTextLayer.id;
+
+                      const effectiveLayer = {
+                        ...layer,
+                        ...(isPreviewTarget ? { font: previewFont! } : {}),
+                        ...(isSizePreviewTarget ? { fontSize: previewFontSize! } : {}),
+                      } as Layer;
+
+                      return (
+                        <LayerView
+                          key={layer.id}
+                          layer={effectiveLayer}
+                          selected={layer.id === selectedId}
+                          printHeight={
+                            printRef.current?.getBoundingClientRect().height ?? REFERENCE_HEIGHT
+                          }
+                          onPointerDown={(e) => beginInteraction(e, "move", layer)}
+                          onResize={(e, mode) => beginInteraction(e, mode ?? "resize-br", layer)}
+                          onRotate={(e) => beginInteraction(e, "rotate", layer)}
+                          onDelete={() => removeLayer(layer.id)}
+                          onDuplicate={() => duplicateLayer(layer.id)}
+                          onUpdateText={(text) => updateSelected({ text })}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  handleFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
             </div>
 
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                handleFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 border-t border-brand-black/5 dark:border-white/10 p-3 text-xs">
-            <span className="mr-2 text-brand-black/50 dark:text-zinc-500">
-              {selected ? "Selected layer" : "Select a layer to edit"}
-            </span>
-            <CanvasAction
-              icon={Copy}
-              label="Duplicate"
-              disabled={!selected}
-              onClick={() => selected && duplicateLayer(selected.id)}
-            />
-            <CanvasAction
-              icon={RotateCw}
-              label="Reset angle"
-              disabled={!selected}
-              onClick={() => updateSelected({ rotation: 0 })}
-            />
-            <CanvasAction
-              icon={Layers}
-              label="Bring to front"
-              disabled={!selected}
-              onClick={() =>
-                selected &&
-                commit((current) => [...current.filter((l) => l.id !== selected.id), selected])
-              }
-            />
-            <CanvasAction
-              icon={Trash2}
-              label="Delete"
-              danger
-              disabled={!selected}
-              onClick={() => selected && removeLayer(selected.id)}
-            />
-          </div>
-        </section>
+            <div className="flex flex-wrap items-center justify-center gap-2 border-t border-brand-black/5 dark:border-white/10 p-3 text-xs">
+              <span className="mr-2 text-brand-black/50 dark:text-zinc-500">
+                {selected ? "Selected layer" : "Select a layer to edit"}
+              </span>
+              <CanvasAction
+                icon={Copy}
+                label="Duplicate"
+                disabled={!selected}
+                onClick={() => selected && duplicateLayer(selected.id)}
+              />
+              <CanvasAction
+                icon={RotateCw}
+                label="Reset angle"
+                disabled={!selected}
+                onClick={() => updateSelected({ rotation: 0 })}
+              />
+              <CanvasAction
+                icon={Layers}
+                label="Bring to front"
+                disabled={!selected}
+                onClick={() =>
+                  selected &&
+                  commit((current) => [...current.filter((l) => l.id !== selected.id), selected])
+                }
+              />
+              <CanvasAction
+                icon={Trash2}
+                label="Delete"
+                danger
+                disabled={!selected}
+                onClick={() => selected && removeLayer(selected.id)}
+              />
+            </div>
+          </section>
+        </div>
 
         {/* Right column */}
         <div className="space-y-4">
-          <Panel number={2} title="Garment colour & mixture">
+          <Panel number={3} title="Garment colour & mixture">
             {/* Color mode tabs */}
             <div className="mb-3 flex rounded-lg bg-brand-black/5 dark:bg-white/5 p-1 text-xs">
               <button
@@ -1513,30 +1730,19 @@ function StudioPage() {
             >
               <Heart className="h-3.5 w-3.5" /> Save design
             </button>
+            <button
+              type="button"
+              onClick={handleClearDesign}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/20 dark:border-red-500/30 py-2 text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-950/30"
+            >
+              <RotateCw className="h-3.5 w-3.5" /> Clear design
+            </button>
           </Panel>
         </div>
 
-        {/* Bottom row: text + graphics */}
-        <div className="lg:col-span-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <Panel number={5} title="Text & properties">
-            <TextPanel
-              layers={layers.filter((l): l is TextLayer => l.type === "text")}
-              selectedId={selectedId}
-              onSelect={(l) => {
-                setSide(l.side);
-                setSelectedId(l.id);
-              }}
-              onAdd={addText}
-              onDelete={removeLayer}
-              onChange={(id, patch) =>
-                commit((current) =>
-                  current.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)),
-                )
-              }
-            />
-          </Panel>
-
-          <Panel number={6} title="Uploaded graphics & shapes">
+        {/* Bottom row: uploaded graphics & shapes */}
+        <div className="lg:col-span-3">
+          <Panel number={7} title="Uploaded graphics & shapes">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {layers
                 .filter(
@@ -1868,25 +2074,53 @@ function LayerView({
 
       {selected && (
         <>
+          {/* Bounding Box Outline */}
+          <div className="pointer-events-none absolute inset-0 border-2 border-dashed border-[#FF5F1F] rounded-xs z-20" />
+
+          {/* 4 Corner Resize Handles */}
           <button
             type="button"
-            aria-label="Resize"
-            onPointerDown={onResize}
-            className="absolute -bottom-2.5 -right-2.5 h-5 w-5 cursor-nwse-resize rounded-full border-2 border-white bg-[#FF5F1F]"
+            aria-label="Resize Top Left"
+            onPointerDown={(e) => onResize(e, "resize-tl")}
+            className="absolute -top-2.5 -left-2.5 h-5.5 w-5.5 cursor-nwse-resize rounded-full border-2 border-white bg-[#FF5F1F] shadow-md transition hover:scale-125 z-40"
+            title="Resize from top left"
+          />
+          <button
+            type="button"
+            aria-label="Resize Top Right"
+            onPointerDown={(e) => onResize(e, "resize-tr")}
+            className="absolute -top-2.5 -right-2.5 h-5.5 w-5.5 cursor-nesw-resize rounded-full border-2 border-white bg-[#FF5F1F] shadow-md transition hover:scale-125 z-40"
+            title="Resize from top right"
+          />
+          <button
+            type="button"
+            aria-label="Resize Bottom Left"
+            onPointerDown={(e) => onResize(e, "resize-bl")}
+            className="absolute -bottom-2.5 -left-2.5 h-5.5 w-5.5 cursor-nesw-resize rounded-full border-2 border-white bg-[#FF5F1F] shadow-md transition hover:scale-125 z-40"
+            title="Resize from bottom left"
+          />
+          <button
+            type="button"
+            aria-label="Resize Bottom Right"
+            onPointerDown={(e) => onResize(e, "resize-br")}
+            className="absolute -bottom-2.5 -right-2.5 h-5.5 w-5.5 cursor-nwse-resize rounded-full border-2 border-white bg-[#FF5F1F] shadow-md transition hover:scale-125 z-40"
+            title="Resize from bottom right"
           />
           <button
             type="button"
             aria-label="Rotate"
             onPointerDown={onRotate}
-            className="absolute -top-7 left-1/2 h-5 w-5 -translate-x-1/2 cursor-grab rounded-full border-2 border-white bg-sky-500"
+            className="absolute -top-7 left-1/2 h-5.5 w-5.5 -translate-x-1/2 cursor-grab rounded-full border-2 border-white bg-sky-500 shadow-md z-40"
+            title="Rotate layer"
           />
-          <div className="absolute -top-7 right-0 flex gap-1">
+          <div className="absolute -top-7 right-0 flex gap-1 z-30">
             <button
               type="button"
               aria-label="Duplicate layer"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onDuplicate}
-              className="grid h-5 w-5 place-items-center rounded-full bg-white/90 text-black"
+              className="grid h-5.5 w-5.5 place-items-center rounded-full bg-white/90 text-black shadow-md hover:bg-white transition"
+              title="Duplicate"
             >
               <Copy className="h-3 w-3" />
             </button>
@@ -1895,7 +2129,8 @@ function LayerView({
               aria-label="Delete layer"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onDelete}
-              className="grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white"
+              className="grid h-5.5 w-5.5 place-items-center rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition"
+              title="Delete"
             >
               <Trash2 className="h-3 w-3" />
             </button>
@@ -1913,6 +2148,10 @@ function TextPanel({
   onAdd,
   onDelete,
   onChange,
+  onPreviewFont,
+  previewFont,
+  onPreviewFontSize,
+  previewFontSize,
 }: {
   layers: TextLayer[];
   selectedId: string | null;
@@ -1920,84 +2159,186 @@ function TextPanel({
   onAdd: () => void;
   onDelete: (id: string) => void;
   onChange: (id: string, patch: Partial<TextLayer>) => void;
+  onPreviewFont: (fontValue: string | null) => void;
+  previewFont: string | null;
+  onPreviewFontSize: (size: number | null) => void;
+  previewFontSize: number | null;
 }) {
   const active = layers.find((l) => l.id === selectedId) ?? layers[0] ?? null;
+  const [selectedCategory, setSelectedCategory] = useState<FontCategory>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isFontPickerOpen, setIsFontPickerOpen] = useState(false);
+  const [isFontSizeOpen, setIsFontSizeOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const filteredFonts = useMemo(() => {
+    return FONTS.filter((f) => {
+      const matchesCategory = selectedCategory === "all" || f.category === selectedCategory;
+      const matchesSearch =
+        searchQuery.trim() === "" ||
+        f.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.category.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [selectedCategory, searchQuery]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
-      <div className="space-y-2">
-        {layers.map((l) => (
-          <div
-            key={l.id}
-            className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 ${l.id === active?.id ? "border-[#FF5F1F] bg-[#FF5F1F]/10" : "border-brand-black/10 dark:border-white/10"
-              }`}
-          >
-            <button type="button" onClick={() => onSelect(l)} className="min-w-0 text-left">
-              <span className="block truncate text-xs font-semibold text-brand-black dark:text-white">{l.text || "(empty)"}</span>
-              <span className="text-[10px] uppercase tracking-wider text-brand-black/50 dark:text-zinc-500">{l.side}</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Delete text"
-              onClick={() => onDelete(l.id)}
-              className="shrink-0 text-brand-black/40 dark:text-zinc-500 transition hover:text-red-500 dark:hover:text-red-400"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={onAdd}
-          className="w-full rounded-lg border border-dashed border-brand-black/20 dark:border-white/20 py-2 text-xs font-semibold text-brand-black/70 dark:text-zinc-300 transition hover:border-[#FF5F1F] hover:text-[#FF5F1F]"
-        >
-          + Add text layer
-        </button>
-      </div>
-
-      {active ? (
-        <div className="space-y-3">
-          <textarea
-            value={active.text}
-            onChange={(e) => onChange(active.id, { text: e.target.value })}
-            rows={2}
-            placeholder="Type your text"
-            className="w-full resize-none rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] p-2.5 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
-          />
-          <div className="flex flex-wrap gap-2">
+    <div className="relative">
+      {/* Primary Toolbar Row */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Layer Selector / Add Button */}
+        {layers.length > 0 ? (
+          <div className="flex items-center gap-1">
             <select
-              value={active.font}
-              onChange={(e) => onChange(active.id, { font: e.target.value })}
-              className="min-w-[150px] flex-1 rounded-lg border border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
+              value={active?.id ?? ""}
+              onChange={(e) => {
+                const target = layers.find((l) => l.id === e.target.value);
+                if (target) onSelect(target);
+              }}
+              className="rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] px-2 py-1.5 text-xs font-bold text-brand-black dark:text-white outline-none focus:border-[#FF5F1F]"
             >
-              {FONTS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
+              {layers.map((l, i) => (
+                <option key={l.id} value={l.id}>
+                  Text #{i + 1}: {l.text.slice(0, 12) || "(empty)"} ({l.side})
                 </option>
               ))}
             </select>
-            <select
-              value={String(Math.round(active.fontSize))}
-              onChange={(e) => onChange(active.id, { fontSize: Number(e.target.value) })}
-              className="w-24 rounded-lg border border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#1b1b1f] px-2 py-2 text-sm outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
+            <button
+              type="button"
+              onClick={onAdd}
+              className="rounded-lg border border-dashed border-brand-black/20 dark:border-white/20 px-2 py-1.5 text-xs font-bold text-[#FF5F1F] hover:bg-[#FF5F1F]/10 transition"
+              title="Add another text layer"
             >
-              {Array.from(
-                new Set([
-                  ...[16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 88, 104],
-                  Math.round(active.fontSize),
-                ]),
-              )
-                .sort((a, b) => a - b)
-                .map((s) => (
-                  <option key={s} value={s}>
-                    {s} px
-                  </option>
-                ))}
-            </select>
+              + Text
+            </button>
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex items-center gap-1.5 rounded-lg bg-[#FF5F1F] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#ff7a45] transition"
+          >
+            <TypeIcon className="h-3.5 w-3.5" /> + Add Text Layer
+          </button>
+        )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex overflow-hidden rounded-lg border border-white/10">
+        {active && (
+          <>
+            {/* Quick Text Input */}
+            <input
+              type="text"
+              value={active.text}
+              onChange={(e) => onChange(active.id, { text: e.target.value })}
+              placeholder="Type your text..."
+              className="min-w-[130px] flex-1 rounded-lg border border-brand-black/10 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-[#FF5F1F] text-brand-black dark:text-white"
+            />
+
+            {/* Font Family Popover Trigger */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFontPickerOpen((prev) => !prev);
+                  setIsFontSizeOpen(false);
+                }}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
+                  isFontPickerOpen
+                    ? "border-[#FF5F1F] bg-[#FF5F1F]/10 text-[#FF5F1F]"
+                    : "border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#1b1b1f] text-brand-black dark:text-white hover:border-[#FF5F1F]/50"
+                }`}
+              >
+                <span className="truncate max-w-[120px]" style={{ fontFamily: active.font }}>
+                  {getFontLabel(active.font)}
+                </span>
+                <span className="text-[10px] opacity-60">▾</span>
+              </button>
+
+              {/* Floating Resizable & Draggable Font Picker Window */}
+              <ResizableFontLibraryModal
+                isOpen={isFontPickerOpen}
+                onClose={() => setIsFontPickerOpen(false)}
+                filteredFonts={filteredFonts}
+                activeFont={active.font}
+                previewFont={previewFont}
+                activeText={active.text}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                onSelectFont={(fontValue) => onChange(active.id, { font: fontValue })}
+                onPreviewFont={onPreviewFont}
+              />
+            </div>
+
+            {/* Font Size Selector with Live Hover Preview */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFontSizeOpen((prev) => !prev);
+                  setIsFontPickerOpen(false);
+                }}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
+                  isFontSizeOpen || previewFontSize !== null
+                    ? "border-[#FF5F1F] bg-[#FF5F1F]/10 text-[#FF5F1F]"
+                    : "border-brand-black/10 dark:border-white/10 bg-white dark:bg-[#1b1b1f] text-brand-black dark:text-white hover:border-[#FF5F1F]/50"
+                }`}
+              >
+                <span>{Math.round(previewFontSize ?? active.fontSize)} px</span>
+                <span className="text-[10px] opacity-60">▾</span>
+              </button>
+
+              {isFontSizeOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => {
+                      setIsFontSizeOpen(false);
+                      onPreviewFontSize(null);
+                    }}
+                  />
+                  <div
+                    className="absolute top-full left-0 mt-1.5 z-50 w-48 rounded-xl border border-brand-black/10 dark:border-white/15 bg-white/95 dark:bg-[#18181b]/95 p-2 shadow-2xl backdrop-blur-xl transition-all animate-in fade-in"
+                    onMouseLeave={() => onPreviewFontSize(null)}
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-black/60 dark:text-zinc-400 px-2 py-1 border-b border-brand-black/5 dark:border-white/5 mb-1">
+                      Select Font Size (px)
+                    </div>
+                    <div className="max-h-52 overflow-y-auto space-y-1 pr-0.5">
+                      {[14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 72, 88, 104, 120].map((size) => {
+                        const isSelected = Math.round(active.fontSize) === size;
+                        const isHovering = previewFontSize === size;
+                        return (
+                          <button
+                            key={size}
+                            type="button"
+                            onMouseEnter={() => onPreviewFontSize(size)}
+                            onClick={() => {
+                              onChange(active.id, { fontSize: size });
+                              onPreviewFontSize(null);
+                              setIsFontSizeOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-semibold text-left transition ${
+                              isSelected
+                                ? "bg-[#FF5F1F] text-white font-bold"
+                                : isHovering
+                                ? "bg-[#FF5F1F]/15 text-[#FF5F1F] font-bold"
+                                : "text-brand-black dark:text-zinc-200 hover:bg-brand-black/5 dark:hover:bg-white/10"
+                            }`}
+                          >
+                            <span>{size} px</span>
+                            {isSelected && <span className="text-[10px]">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* B / I / U Formatting Toggles */}
+            <div className="inline-flex overflow-hidden rounded-lg border border-brand-black/10 dark:border-white/15">
               <Toggle
                 active={active.bold}
                 onClick={() => onChange(active.id, { bold: !active.bold })}
@@ -2020,7 +2361,9 @@ function TextPanel({
                 <Underline className="h-3.5 w-3.5" />
               </Toggle>
             </div>
-            <div className="inline-flex overflow-hidden rounded-lg border border-white/10">
+
+            {/* Alignment Toggles */}
+            <div className="inline-flex overflow-hidden rounded-lg border border-brand-black/10 dark:border-white/15">
               <Toggle
                 active={active.align === "left"}
                 onClick={() => onChange(active.id, { align: "left" })}
@@ -2043,23 +2386,55 @@ function TextPanel({
                 <AlignRight className="h-3.5 w-3.5" />
               </Toggle>
             </div>
-            <div className="flex items-center gap-1.5">
-              {INK_COLORS.map((c) => (
+
+            {/* Color Swatches */}
+            <div className="flex items-center gap-1">
+              {INK_COLORS.slice(0, 6).map((c) => (
                 <button
                   key={c}
                   type="button"
                   aria-label={`Text colour ${c}`}
                   onClick={() => onChange(active.id, { color: c })}
-                  className={`h-6 w-6 rounded-full border-2 ${active.color.toLowerCase() === c.toLowerCase()
-                    ? "border-[#FF5F1F]"
-                    : "border-white/20"
-                    }`}
+                  className={`h-5 w-5 rounded-full border-2 transition ${
+                    active.color.toLowerCase() === c.toLowerCase()
+                      ? "border-[#FF5F1F] scale-110"
+                      : "border-brand-black/15 dark:border-white/15"
+                  }`}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
-          </div>
 
+            {/* Advanced Controls Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((prev) => !prev)}
+              className={`rounded-lg border px-2 py-1.5 text-xs font-bold transition ${
+                showAdvanced
+                  ? "border-[#FF5F1F] bg-[#FF5F1F]/10 text-[#FF5F1F]"
+                  : "border-brand-black/10 dark:border-white/10 text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+              }`}
+              title="More text effects"
+            >
+              Spacing ▾
+            </button>
+
+            {/* Delete Active Text Layer Button */}
+            <button
+              type="button"
+              onClick={() => onDelete(active.id)}
+              className="p-1.5 text-brand-black/40 dark:text-zinc-500 hover:text-red-500 transition"
+              title="Delete text layer"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Expandable Advanced Sliders */}
+      {active && showAdvanced && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl border border-brand-black/10 dark:border-white/10 p-3 bg-brand-black/[0.02] dark:bg-white/[0.02] mt-2 animate-in fade-in">
           <SliderRow
             label="Letter spacing"
             value={active.letterSpacing}
@@ -2085,12 +2460,290 @@ function TextPanel({
             onChange={(v) => onChange(active.id, { opacity: v / 100 })}
           />
         </div>
-      ) : (
-        <p className="self-center text-sm text-zinc-500">
-          Add a text layer to edit fonts, colours, spacing and alignment.
-        </p>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Resizable & Draggable Font Library Window Component                 */
+/* ------------------------------------------------------------------ */
+
+function ResizableFontLibraryModal({
+  isOpen,
+  onClose,
+  filteredFonts,
+  activeFont,
+  previewFont,
+  activeText,
+  searchQuery,
+  setSearchQuery,
+  selectedCategory,
+  setSelectedCategory,
+  onSelectFont,
+  onPreviewFont,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  filteredFonts: typeof FONTS;
+  activeFont: string;
+  previewFont: string | null;
+  activeText: string;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  selectedCategory: FontCategory;
+  setSelectedCategory: (cat: FontCategory) => void;
+  onSelectFont: (fontValue: string) => void;
+  onPreviewFont: (fontValue: string | null) => void;
+}) {
+  const [modalSize, setModalSize] = useState({ width: 460, height: 400 });
+  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<null | {
+    type: "move" | "resize-se" | "resize-sw" | "resize-ne" | "resize-nw" | "resize-e" | "resize-s" | "resize-w" | "resize-n";
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+    startPosX: number;
+    startPosY: number;
+  }>(null);
+
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      if (!dragRef.current) return;
+      const { type, startX, startY, startW, startH, startPosX, startPosY } = dragRef.current;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (type === "move") {
+        setModalPos({ x: startPosX + dx, y: startPosY + dy });
+      } else {
+        let newW = startW;
+        let newH = startH;
+        let newX = startPosX;
+        let newY = startPosY;
+
+        if (type.includes("e")) newW = Math.max(300, startW + dx);
+        if (type.includes("s")) newH = Math.max(240, startH + dy);
+        if (type.includes("w")) {
+          const w = Math.max(300, startW - dx);
+          newX = startPosX + (startW - w);
+          newW = w;
+        }
+        if (type.includes("n")) {
+          const h = Math.max(240, startH - dy);
+          newY = startPosY + (startH - h);
+          newH = h;
+        }
+
+        setModalSize({ width: newW, height: newH });
+        setModalPos({ x: newX, y: newY });
+      }
+    };
+
+    const onPointerUp = () => {
+      dragRef.current = null;
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, []);
+
+  if (!isOpen) return null;
+
+  const startDrag = (e: React.PointerEvent, type: NonNullable<typeof dragRef.current>["type"]) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dragRef.current = {
+      type,
+      startX: e.clientX,
+      startY: e.clientY,
+      startW: modalSize.width,
+      startH: modalSize.height,
+      startPosX: modalPos.x,
+      startPosY: modalPos.y,
+    };
+  };
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40"
+        onClick={() => {
+          onClose();
+          onPreviewFont(null);
+        }}
+      />
+      <div
+        className="fixed z-50 rounded-2xl border-2 border-[#FF5F1F]/40 bg-white/95 dark:bg-[#141417]/95 p-3.5 shadow-2xl backdrop-blur-2xl transition-shadow select-none flex flex-col"
+        style={{
+          top: "96px",
+          right: "24px",
+          transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
+          width: `${modalSize.width}px`,
+          height: `${modalSize.height}px`,
+          maxWidth: "calc(100vw - 2rem)",
+          maxHeight: "calc(100vh - 7rem)",
+        }}
+        onMouseLeave={() => onPreviewFont(null)}
+      >
+        {/* Draggable Window Header */}
+        <div
+          className="flex items-center justify-between mb-2 pb-2 border-b border-brand-black/10 dark:border-white/10 cursor-move shrink-0"
+          onPointerDown={(e) => startDrag(e, "move")}
+          title="Drag header to move Font Library window"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-black dark:text-white flex items-center gap-1.5">
+              <Move className="h-3.5 w-3.5 text-[#FF5F1F]" /> Font Library
+            </span>
+            <span className="rounded-full bg-[#FF5F1F]/15 px-2 py-0.5 text-[10px] font-extrabold text-[#FF5F1F]">
+              {filteredFonts.length} styles
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onPreviewFont(null);
+            }}
+            className="rounded-lg p-1 text-brand-black/40 dark:text-zinc-400 hover:bg-brand-black/5 dark:hover:bg-white/10 hover:text-brand-black dark:hover:text-white transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Search Input */}
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search font styles (e.g. Script, Bold)..."
+          className="w-full mb-2 rounded-xl border border-brand-black/10 dark:border-white/15 bg-zinc-50 dark:bg-[#1c1c20] px-3 py-1.5 text-xs font-medium text-brand-black dark:text-white outline-none focus:border-[#FF5F1F] shrink-0"
+        />
+
+        {/* Category Filter Pills */}
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-2 shrink-0">
+          {FONT_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`shrink-0 rounded-lg px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition ${
+                selectedCategory === cat.id
+                  ? "bg-[#FF5F1F] text-white shadow-sm"
+                  : "bg-brand-black/5 dark:bg-white/5 text-brand-black/60 dark:text-zinc-400 hover:bg-brand-black/10 dark:hover:bg-white/10"
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Rectangular Font Cards Grid (2 Columns) */}
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto pr-1 min-h-0">
+          {filteredFonts.map((f) => {
+            const isSelected = activeFont === f.value;
+            const isPreviewing = previewFont === f.value;
+            const displayText = activeText.trim() ? activeText : (f.sample ?? f.label);
+
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onMouseEnter={() => onPreviewFont(f.value)}
+                onClick={() => {
+                  onSelectFont(f.value);
+                  onPreviewFont(null);
+                  onClose();
+                }}
+                className={`group relative flex flex-col justify-between rounded-xl border-2 p-2.5 text-left transition-all ${
+                  isSelected
+                    ? "border-[#FF5F1F] bg-[#FF5F1F]/15 ring-2 ring-[#FF5F1F]/40 shadow-md"
+                    : isPreviewing
+                    ? "border-[#FF5F1F] bg-[#FF5F1F]/10 scale-[1.02]"
+                    : "border-brand-black/5 dark:border-white/10 bg-white dark:bg-[#1a1a1e] hover:border-[#FF5F1F]/60 hover:bg-[#FF5F1F]/5"
+                }`}
+              >
+                <div
+                  className="truncate text-base leading-snug text-brand-black dark:text-white"
+                  style={{ fontFamily: f.value }}
+                >
+                  {displayText}
+                </div>
+                <div className="mt-2 flex items-center justify-between border-t border-brand-black/5 dark:border-white/5 pt-1.5">
+                  <span className="truncate text-[11px] font-bold text-brand-black/70 dark:text-zinc-300">
+                    {f.label}
+                  </span>
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#FF5F1F]">
+                    {f.category}
+                  </span>
+                </div>
+
+                {isSelected && (
+                  <span className="absolute top-2 right-2 grid h-4.5 w-4.5 place-items-center rounded-full bg-[#FF5F1F] text-[9px] font-bold text-white shadow-xs">
+                    ✓
+                  </span>
+                )}
+              </button>
+            );
+          })}
+          {filteredFonts.length === 0 && (
+            <p className="col-span-2 py-4 text-center text-xs text-brand-black/40 dark:text-zinc-500">
+              No matching fonts found.
+            </p>
+          )}
+        </div>
+
+        {/* Window Corner Resize Handles (All 4 Corners) */}
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-nw")}
+          className="absolute -top-1.5 -left-1.5 h-4 w-4 cursor-nwse-resize rounded-full bg-[#FF5F1F] border-2 border-white opacity-80 hover:opacity-100 hover:scale-125 transition z-50"
+          title="Resize window top left"
+        />
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-ne")}
+          className="absolute -top-1.5 -right-1.5 h-4 w-4 cursor-nesw-resize rounded-full bg-[#FF5F1F] border-2 border-white opacity-80 hover:opacity-100 hover:scale-125 transition z-50"
+          title="Resize window top right"
+        />
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-sw")}
+          className="absolute -bottom-1.5 -left-1.5 h-4 w-4 cursor-nesw-resize rounded-full bg-[#FF5F1F] border-2 border-white opacity-80 hover:opacity-100 hover:scale-125 transition z-50"
+          title="Resize window bottom left"
+        />
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-se")}
+          className="absolute -bottom-1.5 -right-1.5 h-4 w-4 cursor-nwse-resize rounded-full bg-[#FF5F1F] border-2 border-white opacity-80 hover:opacity-100 hover:scale-125 transition z-50"
+          title="Resize window bottom right"
+        />
+
+        {/* Window Edge Resize Handles (4 Sides) */}
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-n")}
+          className="absolute -top-1 left-1/2 -translate-x-1/2 h-2 w-12 cursor-ns-resize rounded bg-[#FF5F1F]/60 hover:bg-[#FF5F1F] transition z-50"
+          title="Resize window height"
+        />
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-s")}
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-12 cursor-ns-resize rounded bg-[#FF5F1F]/60 hover:bg-[#FF5F1F] transition z-50"
+          title="Resize window height"
+        />
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-w")}
+          className="absolute top-1/2 -left-1 -translate-y-1/2 h-12 w-2 cursor-ew-resize rounded bg-[#FF5F1F]/60 hover:bg-[#FF5F1F] transition z-50"
+          title="Resize window width"
+        />
+        <div
+          onPointerDown={(e) => startDrag(e, "resize-e")}
+          className="absolute top-1/2 -right-1 -translate-y-1/2 h-12 w-2 cursor-ew-resize rounded bg-[#FF5F1F]/60 hover:bg-[#FF5F1F] transition z-50"
+          title="Resize window width"
+        />
+      </div>
+    </>
   );
 }
 

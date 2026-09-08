@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Minus, Plus, ShoppingBag, Trash2, ArrowRight } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Trash2, ArrowRight, Edit3 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -162,13 +162,22 @@ function CartPage() {
                     <p className="text-xl font-black">
                       ₹{(item.unitPrice * item.quantity).toFixed(2)}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => remove(item)}
-                      className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-red-600"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Remove
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        to="/studio"
+                        search={{ cartItemId: item.id }}
+                        className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-brand-orange hover:underline"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" /> Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => remove(item)}
+                        className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-red-600 hover:underline"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remove
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}

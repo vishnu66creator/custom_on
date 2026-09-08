@@ -295,19 +295,18 @@ function HomePage() {
                   </div>
                 </div>
 
-                <div className="flex items-start justify-between gap-4 px-1">
-                  <div>
+                <div className="flex flex-col gap-3 px-1">
+                  <div className="flex items-start justify-between gap-4">
                     <h4 className="font-bold uppercase tracking-wide text-sm">{p.name}</h4>
-                    <p className="text-xs text-brand-black/50 dark:text-white/50 mt-1">
-                      {p.colors.length} Available Colors
-                    </p>
+                    <span className="font-mono text-xs font-bold text-brand-orange">${p.price.toFixed(2)}</span>
                   </div>
                   <Link
                     to="/studio"
+                    search={{ productId: p.id }}
                     data-cursor="EDIT"
-                    className="border border-brand-black/10 dark:border-white/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider hover:bg-brand-black hover:text-white dark:hover:bg-white dark:hover:text-brand-black transition-colors"
+                    className="block w-full rounded-xl bg-brand-black dark:bg-white/10 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-white transition-all hover:bg-brand-orange dark:hover:bg-brand-orange shadow-sm"
                   >
-                    Design
+                    Customize & Choose Color
                   </Link>
                 </div>
               </div>

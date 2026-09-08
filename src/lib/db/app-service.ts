@@ -50,15 +50,30 @@ type SavedDesignInput = {
   customTextSize: number;
   customImage: string | null;
   price: number;
+  designState?: Record<string, unknown> | null;
 };
 type SavedDesignRecord = SavedDesignInput & { id: string; createdAt: string };
 
-function requireDb() {
-  // Dynamic import keeps the node-postgres client out of the browser bundle.
-  return import("./db").then(({ db }) => {
-    if (!db) throw new Error("The database is not configured on the server.");
-    return db;
-  });
+let schemaEnsured = false;
+
+async function ensureSchemaColumns(dbInstance: any) {
+  if (schemaEnsured) return;
+  schemaEnsured = true;
+  try {
+    const { sql } = await import("drizzle-orm");
+    await dbInstance.execute(sql`ALTER TABLE "cart_items" ADD COLUMN IF NOT EXISTS "design_state" jsonb;`);
+    await dbInstance.execute(sql`ALTER TABLE "saved_designs" ADD COLUMN IF NOT EXISTS "design_state" jsonb;`);
+    await dbInstance.execute(sql`ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "design_state" jsonb;`);
+  } catch (err) {
+    console.error("Auto schema column check notice:", err);
+  }
+}
+
+async function requireDb() {
+  const { db } = await import("./db");
+  if (!db) throw new Error("The database is not configured on the server.");
+  await ensureSchemaColumns(db);
+  return db;
 }
 
 function toCustomerView(row: DbCustomer): CustomerView {
@@ -248,6 +263,7 @@ function mapCartItem(row: typeof cartItems.$inferSelect): CartItem {
     frontPreview: row.frontPreview,
     backPreview: row.backPreview,
     summary: row.summary,
+    designState: row.designState,
   };
 }
 
@@ -265,7 +281,13 @@ export const addCustomerCartItem = createServerFn({ method: "POST" })
     const cart = await ensureCart(customer.id);
     const db = await requireDb();
     const item = { id: `CI-${cryptoRandomId()}`, cartId: cart.id, ...data };
-    await db.insert(cartItems).values(item);
+    try {
+      await db.insert(cartItems).values(item);
+    } catch (err) {
+      console.error("Cart item insert error, retrying without designState:", err);
+      const { designState, ...fallbackItem } = item;
+      await db.insert(cartItems).values(fallbackItem);
+    }
     return mapCartItem({ ...item, createdAt: new Date(), updatedAt: new Date() });
   });
 
@@ -320,6 +342,7 @@ function mapSavedDesign(row: typeof savedDesigns.$inferSelect): SavedDesignRecor
     customTextSize: row.customTextSize,
     customImage: row.customImage,
     price: row.price,
+    designState: row.designState,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -336,13 +359,33 @@ export const getCustomerSavedDesigns = createServerFn({ method: "GET" }).handler
   ).map(mapSavedDesign);
 });
 
+export const getSavedDesignById = createServerFn({ method: "GET" })
+  .validator((data: { id: string }) => data)
+  .handler(async ({ data }) => {
+    const customer = await requireCustomer();
+    const db = await requireDb();
+    const rows = await db
+      .select()
+      .from(savedDesigns)
+      .where(and(eq(savedDesigns.id, data.id), eq(savedDesigns.customerId, customer.id)))
+      .limit(1);
+    if (!rows[0]) return null;
+    return mapSavedDesign(rows[0]);
+  });
+
 export const saveCustomerDesign = createServerFn({ method: "POST" })
   .validator((data: SavedDesignInput) => data)
   .handler(async ({ data }) => {
     const customer = await requireCustomer();
     const db = await requireDb();
     const row = { id: `DES-${cryptoRandomId()}`, customerId: customer.id, ...data };
-    await db.insert(savedDesigns).values(row);
+    try {
+      await db.insert(savedDesigns).values(row);
+    } catch (err) {
+      console.error("Saved design insert error, retrying without designState:", err);
+      const { designState, ...fallbackRow } = row;
+      await db.insert(savedDesigns).values(fallbackRow);
+    }
     return mapSavedDesign({ ...row, createdAt: new Date() });
   });
 
@@ -448,6 +491,7 @@ function mapOrder(row: typeof orders.$inferSelect, item: typeof orderItems.$infe
     totalPrice: item.totalPrice,
     size: item.size,
     targetGroup: item.targetGroup as "Men",
+    designState: item.designState,
   };
 }
 
@@ -517,6 +561,7 @@ export const createCustomerOrder = createServerFn({ method: "POST" })
           quantity: item.quantity ?? 1,
           size: item.size,
           targetGroup: item.targetGroup,
+          designState: item.designState ?? null,
         })),
       );
     });

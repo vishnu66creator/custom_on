@@ -55,16 +55,25 @@ function DashboardPage() {
   useEffect(() => {
     if (!isLoading && !user) {
       navigate({ to: "/login" });
+      return;
     }
-  }, [user, isLoading, navigate]);
+    if (!isLoading && user && user.role === "customer") {
+      const rawTab = (search as Record<string, string>)["tab"];
+      if (search.tab === "blanks" || rawTab === "designs" || rawTab === "wishlist") {
+        navigate({ to: "/designs" });
+      } else {
+        navigate({ to: "/orders" });
+      }
+    }
+  }, [user, isLoading, navigate, search]);
 
   if (isLoading || !user) {
     return null;
   }
 
-  // If customer, render the customer portal order history dashboard
+  // If customer, redirect effect will trigger. Return empty shell during transition.
   if (user.role === "customer") {
-    return <CustomerDashboard user={user} />;
+    return null;
   }
 
   // Render original Owner Dashboard for shop owners
@@ -630,8 +639,14 @@ function CustomerDashboard({ user }: { user: { username: string; role: string; n
   };
 
   const handleRemoveDesignWishlist = async (designId: string) => {
-    await removeDesignFromWishlist(designId);
-    await loadData();
+    try {
+      await removeDesignFromWishlist(designId);
+      toast.success("Saved design removed.");
+      await loadData();
+    } catch (err) {
+      console.error("Failed to remove saved design", err);
+      toast.error("Unable to remove saved design.");
+    }
   };
 
   const getStatusColor = (status: OrderStatus) => {
@@ -1017,6 +1032,7 @@ function CustomerDashboard({ user }: { user: { username: string; role: string; n
                           <Link
                             to="/studio"
                             search={{
+                              designId: design.id,
                               productId: design.productId,
                               color: design.shirtColor,
                               colorName: design.shirtColorName,

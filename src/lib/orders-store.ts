@@ -5,6 +5,8 @@ import {
   updateCustomerOrderStatus,
 } from "./db/app-service";
 
+import type { FullDesignState } from "./working-design-store";
+
 export type OrderStatus = "Pending" | "Processing" | "Shipped" | "Completed" | "Cancelled";
 
 export type Order = {
@@ -26,6 +28,7 @@ export type Order = {
   totalPrice: number;
   size: string;
   targetGroup: "Men";
+  designState?: FullDesignState | Record<string, unknown> | null;
 };
 
 export function getOrders(scope: "customer" | "all" = "customer"): Promise<Order[]> {

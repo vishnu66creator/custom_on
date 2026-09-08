@@ -72,6 +72,7 @@ function OrderReviewPage() {
             totalPrice: item.unitPrice * item.quantity,
             size: item.size,
             targetGroup: item.targetGroup,
+            designState: item.designState ?? null,
           })),
         },
       });
