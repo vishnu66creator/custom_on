@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgTable,
@@ -29,6 +30,16 @@ export const customers = pgTable(
     email: text("email"),
     phone: text("phone"),
     passwordHash: text("password_hash"),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    emailVerificationOtpHash: text("email_verification_otp_hash"),
+    emailVerificationOtpExpiresAt: timestamp("email_verification_otp_expires_at", { withTimezone: true }),
+    emailVerificationAttempts: integer("email_verification_attempts").default(0).notNull(),
+    emailVerificationLastSentAt: timestamp("email_verification_last_sent_at", { withTimezone: true }),
+    emailVerificationVerifiedAt: timestamp("email_verification_verified_at", { withTimezone: true }),
+    phoneVerified: boolean("phone_verified").default(false).notNull(),
+    provider: text("provider").default("email").notNull(),
+    providerAccountId: text("provider_account_id"),
+    avatar: text("avatar"),
     theme: text("theme"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -38,6 +49,65 @@ export const customers = pgTable(
       table.username,
       table.role,
     ),
+    emailUnique: uniqueIndex("customers_email_unique").on(table.email),
+    phoneRoleUnique: uniqueIndex("customers_phone_role_unique").on(table.phone, table.role),
+  }),
+);
+
+export const otpVerifications = pgTable(
+  "otp_verifications",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    otpHash: text("otp_hash").notNull(),
+    purpose: text("purpose").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    resendAvailableAt: timestamp("resend_available_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    identifierIdx: uniqueIndex("otp_verifications_identifier_idx").on(table.identifier),
+  }),
+);
+
+export const emailVerifications = pgTable(
+  "email_verifications",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    passwordHash: text("password_hash").notNull(),
+    otpHash: text("otp_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    resendAvailableAt: timestamp("resend_available_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    emailIdx: uniqueIndex("email_verifications_email_idx").on(table.email),
+  }),
+);
+
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    otpHash: text("otp_hash").notNull(),
+    resetTokenHash: text("reset_token_hash"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    resendAvailableAt: timestamp("resend_available_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    emailIdx: uniqueIndex("password_reset_tokens_email_idx").on(table.email),
   }),
 );
 

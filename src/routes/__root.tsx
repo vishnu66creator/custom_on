@@ -106,6 +106,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alex+Brush&family=Allura&family=Anton&family=Archivo+Narrow:wght@500;700&family=Barlow+Condensed:wght@600;700&family=Bebas+Neue&family=Bungee&family=Caveat:wght@600;700&family=Cinzel:wght@700;900&family=Comfortaa:wght@700&family=Cormorant+Garamond:wght@600;700&family=Dancing+Script:wght@600;700&family=DM+Sans:wght@500;700&family=Great+Vibes&family=Indie+Flower&family=Inter:wght@400;500;600;700&family=Kalam:wght@700&family=Kaushan+Script&family=League+Spartan:wght@700;800&family=Libre+Baskerville:wght@700&family=Lobster&family=Merriweather:wght@700&family=Monoton&family=Montserrat:wght@600;700;800&family=Orbitron:wght@700;900&family=Oswald:wght@600;700&family=Pacifico&family=Patrick+Hand&family=Permanent+Marker&family=Pirata+One&family=Playfair+Display:ital,wght@0,700;1,700&family=Plus+Jakarta+Sans:wght@500;700;800&family=Poppins:wght@600;700&family=Press+Start+2P&family=Raleway:wght@600;700&family=Righteous&family=Russo+One&family=Sacramento&family=Satisfy&family=Space+Grotesk:wght@600;700&family=Syne:wght@700;800&family=UnifrakturMaguntia&display=swap",
       },
     ],
+    scripts: [
+      {
+        src: "https://accounts.google.com/gsi/client",
+        async: true,
+        defer: true,
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,

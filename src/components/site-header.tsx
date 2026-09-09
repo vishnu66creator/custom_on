@@ -274,8 +274,7 @@ export function SiteHeader() {
                   ) : (
                     <>
                       <Link
-                        to="/login"
-                        search={{ signup: "true" }}
+                        to="/register"
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-brand-black/80 dark:text-white/80 transition-colors hover:bg-brand-orange/10 hover:text-brand-orange"
                       >
@@ -288,7 +287,7 @@ export function SiteHeader() {
                         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider text-brand-black/80 dark:text-white/80 transition-colors hover:bg-brand-orange/10 hover:text-brand-orange"
                       >
                         <LogIn className="h-4 w-4 shrink-0 text-brand-orange" />
-                        <span>Login</span>
+                        <span>Sign In</span>
                       </Link>
                     </>
                   )}
@@ -426,19 +425,18 @@ export function SiteHeader() {
           ) : (
             <div className="border-t border-brand-black/5 dark:border-white/5 mt-2 pt-3 px-2 flex flex-col gap-2">
               <Link
-                to="/login"
-                search={{ signup: "true" }}
+                to="/register"
                 onClick={() => setOpen(false)}
-                className="border border-brand-orange bg-brand-orange/10 py-2.5 text-center text-xs font-bold uppercase tracking-widest text-brand-orange hover:bg-brand-orange hover:text-white transition-colors rounded-xl text-center"
+                className="border border-brand-orange bg-brand-orange/10 py-2.5 text-center text-xs font-bold uppercase tracking-widest text-brand-orange hover:bg-brand-orange hover:text-white transition-colors rounded-xl"
               >
                 Sign Up
               </Link>
               <Link
                 to="/login"
                 onClick={() => setOpen(false)}
-                className="border border-brand-black/10 dark:border-white/10 py-2.5 text-center text-xs font-bold uppercase tracking-widest text-brand-black dark:text-white hover:border-brand-orange rounded-xl text-center"
+                className="border border-brand-black/10 dark:border-white/10 py-2.5 text-center text-xs font-bold uppercase tracking-widest text-brand-black dark:text-white hover:border-brand-orange rounded-xl"
               >
-                Log In
+                Sign In
               </Link>
             </div>
           )}
