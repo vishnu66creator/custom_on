@@ -68,10 +68,18 @@ function ProfilePage() {
               </div>
               <div>
                 <dt className="text-[10px] font-black uppercase tracking-wider opacity-50">
-                  Phone / login
+                  Email
                 </dt>
-                <dd className="mt-1 text-lg font-bold">{user.username}</dd>
+                <dd className="mt-1 text-lg font-bold break-all">{user.email ?? user.username}</dd>
               </div>
+              {user.phone && (
+                <div>
+                  <dt className="text-[10px] font-black uppercase tracking-wider opacity-50">
+                    Phone Number
+                  </dt>
+                  <dd className="mt-1 text-lg font-bold">{user.phone}</dd>
+                </div>
+              )}
             </dl>
           </div>
         </section>

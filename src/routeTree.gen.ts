@@ -16,14 +16,19 @@ import { Route as CartRouteImport } from './routes/cart'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DesignsRouteImport } from './routes/designs'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OrderReviewRouteImport } from './routes/order-review'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password.index'
+import { Route as ResetPasswordVerifyRouteImport } from './routes/reset-password.verify'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -60,6 +65,11 @@ const DesignsRoute = DesignsRouteImport.update({
   path: '/designs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -90,6 +100,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -98,6 +113,21 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordIndexRoute = ResetPasswordIndexRouteImport.update({
+  id: '/reset-password/',
+  path: '/reset-password/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordVerifyRoute = ResetPasswordVerifyRouteImport.update({
+  id: '/reset-password/verify',
+  path: '/reset-password/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -109,14 +139,19 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/designs': typeof DesignsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/order-review': typeof OrderReviewRoute
   '/orders': typeof OrdersRoute
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studio': typeof StudioRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/reset-password/verify': typeof ResetPasswordVerifyRoute
+  '/reset-password/': typeof ResetPasswordIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,14 +161,19 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/designs': typeof DesignsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/order-review': typeof OrderReviewRoute
   '/orders': typeof OrdersRoute
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studio': typeof StudioRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/reset-password/verify': typeof ResetPasswordVerifyRoute
+  '/reset-password': typeof ResetPasswordIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,14 +184,19 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/designs': typeof DesignsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/order-review': typeof OrderReviewRoute
   '/orders': typeof OrdersRoute
   '/pricing': typeof PricingRoute
   '/products': typeof ProductsRoute
   '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/studio': typeof StudioRoute
+  '/verify-email': typeof VerifyEmailRoute
+  '/reset-password/verify': typeof ResetPasswordVerifyRoute
+  '/reset-password/': typeof ResetPasswordIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -163,14 +208,19 @@ export interface FileRouteTypes {
     | '/contact'
     | '/dashboard'
     | '/designs'
+    | '/forgot-password'
     | '/login'
     | '/order-review'
     | '/orders'
     | '/pricing'
     | '/products'
     | '/profile'
+    | '/register'
     | '/sitemap.xml'
     | '/studio'
+    | '/verify-email'
+    | '/reset-password/verify'
+    | '/reset-password/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -180,14 +230,19 @@ export interface FileRouteTypes {
     | '/contact'
     | '/dashboard'
     | '/designs'
+    | '/forgot-password'
     | '/login'
     | '/order-review'
     | '/orders'
     | '/pricing'
     | '/products'
     | '/profile'
+    | '/register'
     | '/sitemap.xml'
     | '/studio'
+    | '/verify-email'
+    | '/reset-password/verify'
+    | '/reset-password'
   id:
     | '__root__'
     | '/'
@@ -197,14 +252,19 @@ export interface FileRouteTypes {
     | '/contact'
     | '/dashboard'
     | '/designs'
+    | '/forgot-password'
     | '/login'
     | '/order-review'
     | '/orders'
     | '/pricing'
     | '/products'
     | '/profile'
+    | '/register'
     | '/sitemap.xml'
     | '/studio'
+    | '/verify-email'
+    | '/reset-password/verify'
+    | '/reset-password/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -215,14 +275,19 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
   DesignsRoute: typeof DesignsRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   OrderReviewRoute: typeof OrderReviewRoute
   OrdersRoute: typeof OrdersRoute
   PricingRoute: typeof PricingRoute
   ProductsRoute: typeof ProductsRoute
   ProfileRoute: typeof ProfileRoute
+  RegisterRoute: typeof RegisterRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudioRoute: typeof StudioRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
+  ResetPasswordVerifyRoute: typeof ResetPasswordVerifyRoute
+  ResetPasswordIndexRoute: typeof ResetPasswordIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -276,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DesignsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -318,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -332,6 +411,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password/': {
+      id: '/reset-password/'
+      path: '/reset-password'
+      fullPath: '/reset-password/'
+      preLoaderRoute: typeof ResetPasswordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password/verify': {
+      id: '/reset-password/verify'
+      path: '/reset-password/verify'
+      fullPath: '/reset-password/verify'
+      preLoaderRoute: typeof ResetPasswordVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -343,14 +443,19 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
   DesignsRoute: DesignsRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   OrderReviewRoute: OrderReviewRoute,
   OrdersRoute: OrdersRoute,
   PricingRoute: PricingRoute,
   ProductsRoute: ProductsRoute,
   ProfileRoute: ProfileRoute,
+  RegisterRoute: RegisterRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudioRoute: StudioRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
+  ResetPasswordVerifyRoute: ResetPasswordVerifyRoute,
+  ResetPasswordIndexRoute: ResetPasswordIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
