@@ -13,9 +13,14 @@ import {
   verifyPasswordResetOtp as verifyPasswordResetOtpFn,
   resendPasswordResetOtp as resendPasswordResetOtpFn,
   resetPasswordWithToken as resetPasswordWithTokenFn,
+  loginAdminWithEmail as loginAdminWithEmailFn,
+  requestAdminPasswordResetOtp as requestAdminPasswordResetOtpFn,
+  verifyAdminPasswordResetOtp as verifyAdminPasswordResetOtpFn,
+  resendAdminPasswordResetOtp as resendAdminPasswordResetOtpFn,
+  resetAdminPasswordWithToken as resetAdminPasswordWithTokenFn,
 } from "./db/app-service";
 
-export type Role = "customer" | "shop-owner";
+export type Role = "customer" | "shop-owner" | "admin";
 
 export interface User {
   id: string;
@@ -83,6 +88,26 @@ interface AuthContextType {
     email: string,
   ) => Promise<{ success: boolean; error?: string; resendInSeconds?: number }>;
   resetPasswordWithToken: (
+    email: string,
+    resetToken: string,
+    newPassword: string,
+    confirmPassword?: string,
+  ) => Promise<{ success: boolean; error?: string; message?: string }>;
+  loginAdminWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  requestAdminPasswordResetOtp: (
+    email: string,
+  ) => Promise<{ success: boolean; error?: string; message?: string; resendInSeconds?: number }>;
+  verifyAdminPasswordResetOtp: (
+    email: string,
+    otp: string,
+  ) => Promise<{ success: boolean; error?: string; resetToken?: string }>;
+  resendAdminPasswordResetOtp: (
+    email: string,
+  ) => Promise<{ success: boolean; error?: string; resendInSeconds?: number }>;
+  resetAdminPasswordWithToken: (
     email: string,
     resetToken: string,
     newPassword: string,
@@ -276,6 +301,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginAdminWithEmail = async (email: string, password: string) => {
+    try {
+      const result = await loginAdminWithEmailFn({
+        data: { email, password },
+      });
+      if (result.success && "user" in result && result.user) {
+        setUser(result.user);
+      }
+      return result;
+    } catch (error) {
+      console.error("Admin login failed", error);
+      const msg = error instanceof Error ? error.message : undefined;
+      return { success: false, error: sanitizeError(msg) };
+    }
+  };
+
+  const requestAdminPasswordResetOtp = async (email: string) => {
+    try {
+      const result = await requestAdminPasswordResetOtpFn({
+        data: { email },
+      });
+      return result;
+    } catch (error) {
+      console.error("Admin password reset request failed", error);
+      const msg = error instanceof Error ? error.message : undefined;
+      return { success: false, error: sanitizeError(msg) };
+    }
+  };
+
+  const verifyAdminPasswordResetOtp = async (email: string, otp: string) => {
+    try {
+      const result = await verifyAdminPasswordResetOtpFn({
+        data: { email, otp },
+      });
+      return result;
+    } catch (error) {
+      console.error("Admin OTP verification failed", error);
+      const msg = error instanceof Error ? error.message : undefined;
+      return { success: false, error: sanitizeError(msg) };
+    }
+  };
+
+  const resendAdminPasswordResetOtp = async (email: string) => {
+    try {
+      const result = await resendAdminPasswordResetOtpFn({
+        data: { email },
+      });
+      return result;
+    } catch (error) {
+      console.error("Admin resend OTP failed", error);
+      const msg = error instanceof Error ? error.message : undefined;
+      return { success: false, error: sanitizeError(msg) };
+    }
+  };
+
+  const resetAdminPasswordWithToken = async (
+    email: string,
+    resetToken: string,
+    newPassword: string,
+    confirmPassword?: string,
+  ) => {
+    try {
+      const result = await resetAdminPasswordWithTokenFn({
+        data: { email, resetToken, newPassword, confirmPassword },
+      });
+      return result;
+    } catch (error) {
+      console.error("Admin reset password failed", error);
+      const msg = error instanceof Error ? error.message : undefined;
+      return { success: false, error: sanitizeError(msg) };
+    }
+  };
+
   const login = async (identifierOrEmail: string, role: Role, password?: string) => {
     try {
       const result = await loginCustomer({
@@ -391,6 +489,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyPasswordResetOtp,
         resendPasswordResetOtp,
         resetPasswordWithToken,
+        loginAdminWithEmail,
+        requestAdminPasswordResetOtp,
+        verifyAdminPasswordResetOtp,
+        resendAdminPasswordResetOtp,
+        resetAdminPasswordWithToken,
         loginWithGoogle,
         logout,
         registerUser,
