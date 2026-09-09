@@ -297,6 +297,7 @@ function StudioPage() {
     snappingRef.current = snappingEnabled;
   }, [snappingEnabled]);
 
+  const [showGrid, setShowGrid] = useState(false);
   const [activeGuides, setActiveGuides] = useState<ActiveGuidesState | null>(null);
 
   const printRef = useRef<HTMLDivElement | null>(null);
@@ -947,6 +948,19 @@ function StudioPage() {
                 <span className="text-[11px]">Snap: {snappingEnabled ? "ON" : "OFF"}</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => setShowGrid((g) => !g)}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-bold transition ${showGrid
+                  ? "border-[#FF5F1F] bg-[#FF5F1F]/15 text-[#FF5F1F] ring-1 ring-[#FF5F1F]/30"
+                  : "border-brand-black/10 dark:border-white/10 text-brand-black/60 dark:text-zinc-400 hover:text-brand-black dark:hover:text-white"
+                  }`}
+                title={showGrid ? "Design Grid Line Overlay Active" : "Grid Overlay Hidden"}
+              >
+                <Grid className="h-3.5 w-3.5" />
+                <span className="text-[11px]">Grid: {showGrid ? "ON" : "OFF"}</span>
+              </button>
+
               <div className="flex items-center gap-1">
                 <span className="hidden sm:inline">Zoom</span>
                 <button
@@ -1163,6 +1177,7 @@ function StudioPage() {
                   aria-label="Full garment customization canvas"
                 >
                   <SmartGuidesOverlay activeGuides={activeGuides} />
+                  {showGrid && <CanvasGridOverlay />}
                   {sideLayers.map((layer) => (
                     <LayerView
                       key={layer.id}
@@ -2350,6 +2365,43 @@ function SmartGuidesOverlay({
             EXACT CENTER (50%, 50%)
           </span>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Design Grid Line Overlay with Intersection Crosshairs (+ Marks)    */
+/* ------------------------------------------------------------------ */
+
+function CanvasGridOverlay() {
+  const cols = 10;
+  const rows = 10;
+  const colPercents = Array.from({ length: cols + 1 }, (_, i) => (i * 100) / cols);
+  const rowPercents = Array.from({ length: rows + 1 }, (_, i) => (i * 100) / rows);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-lg">
+      {/* Background SVG Grid Pattern */}
+      <svg className="h-full w-full opacity-25 dark:opacity-35" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="studio-grid-pattern" width="10%" height="10%" patternUnits="userSpaceOnUse">
+            <path d="M 100 0 L 0 0 0 100" fill="none" stroke="currentColor" strokeWidth="0.8" className="text-brand-black dark:text-white" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#studio-grid-pattern)" />
+      </svg>
+      {/* Precision Crosshair (+) at every grid line intersection */}
+      {rowPercents.map((r, ri) =>
+        colPercents.map((c, ci) => (
+          <div
+            key={`grid-cross-${ri}-${ci}`}
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-brand-black/45 dark:text-white/45 pointer-events-none select-none"
+            style={{ left: `${c}%`, top: `${r}%` }}
+          >
+            <span className="text-[11px] font-bold leading-none">+</span>
+          </div>
+        ))
       )}
     </div>
   );
