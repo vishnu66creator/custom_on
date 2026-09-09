@@ -1,0 +1,74 @@
+/* Admin Portal Design System Styles */
+:root {
+  --admin-bg: #0b0b0d;
+  --admin-card: rgba(24, 24, 27, 0.85);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-accent: #f97316;
+  --admin-text-primary: #ffffff;
+  --admin-text-muted: rgba(255, 255, 255, 0.6);
+}
+
+.admin-glass {
+  background: var(--admin-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-card-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(249, 115, 22, 0.3);
+  box-shadow: 0 12px 30px -10px rgba(249, 115, 22, 0.15);
+}
+
+/* Premium Dark Custom Scrollbar for Admin */
+.admin-custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #f97316;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.7);
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #ea580c;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+

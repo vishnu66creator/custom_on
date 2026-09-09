@@ -78,7 +78,7 @@ export function SiteHeader() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-brand-black/5 dark:border-white/5 bg-white/80 dark:bg-brand-black/85 px-6 py-4 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+      <div className="flex w-full items-center justify-between gap-4">
         <div className="flex items-center gap-8">
           <Link
             to="/"

@@ -295,3 +295,56 @@
   z-index: 0;
   filter: blur(26px);
 }
+
+/* Universal Sleek Scrollbars for Dark Mode and Admin */
+.admin-custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scroll-behavior: smooth;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar,
+.dark ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-track,
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-thumb,
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #f97316;
+}
+
+.admin-custom-scrollbar::-webkit-scrollbar-button,
+.dark ::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+/* Admin Design Utilities */
+.admin-glass {
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-card-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(249, 115, 22, 0.3);
+  box-shadow: 0 12px 30px -10px rgba(249, 115, 22, 0.15);
+}
+
