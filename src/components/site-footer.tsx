@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Instagram, Twitter, Facebook, MapPin, Phone, Mail, Clock } from "lucide-react";
+import { getAdminUrl } from "@/lib/config";
 
 export function SiteFooter() {
   return (
@@ -106,9 +107,14 @@ export function SiteFooter() {
         <div className="flex gap-6">
           <a href="#">Privacy</a>
           <a href="#">Terms</a>
-          <Link to="/admin" className="text-white/40 hover:text-brand-orange transition-colors">
-            Admin Portal
-          </Link>
+          <a
+            href={getAdminUrl("/admin/login")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white/40 hover:text-brand-orange transition-colors"
+          >
+            Admin Portal (Port 5174)
+          </a>
         </div>
       </div>
     </footer>

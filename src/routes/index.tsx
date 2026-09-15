@@ -53,6 +53,11 @@ function HomePage() {
   const [featured, setFeatured] = useState<Product[]>(getProducts().slice(0, 4));
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.port === "5174") {
+      window.location.href = "/admin/login";
+      return;
+    }
+
     let active = true;
     getProductsAsync().then((prods) => {
       if (active) {

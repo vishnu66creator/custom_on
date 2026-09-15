@@ -1,0 +1,13 @@
+/* Customer Storefront Design Tokens and Styling */
+.customer-hero-gradient {
+  background: radial-gradient(circle at 50% 0%, rgba(249, 115, 22, 0.12) 0%, transparent 70%);
+}
+
+.customer-card-hover {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.customer-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
+}

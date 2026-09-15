@@ -4,13 +4,17 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "node scripts/dev-launcher.mjs",
+    "dev:single": "vite dev --port 5173",
+    "dev:admin": "vite dev --port 5174",
+    "dev:all": "npx concurrently \"npm run dev\" \"npm run dev:admin\"",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "check": "npm run build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

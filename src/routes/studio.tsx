@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  ArrowLeft,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -1825,14 +1826,12 @@ function StudioHeader({
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-brand-black/5 dark:border-white/5 bg-white/90 dark:bg-[#0b0b0d]/90 px-6 py-2.5 backdrop-blur-md text-brand-black dark:text-white transition-colors">
       <div className="flex items-center gap-2">
-        <Link to="/" className="flex items-center gap-2 font-display text-sm font-extrabold tracking-tight text-brand-black dark:text-white hover:opacity-80 transition mr-1">
-          <img src="/logo.png" alt="Custom On Logo" className="h-7 w-7 shrink-0 object-contain drop-shadow-xs" />
-          <span>CUSTOM<span className="text-brand-orange">ON</span></span>
+        <Link to="/" className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest text-brand-black/80 dark:text-white/80 hover:text-brand-orange dark:hover:text-brand-orange transition mr-1">
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          <span>BACK TO STORE</span>
         </Link>
         <span className="text-brand-black/30 dark:text-white/20">/</span>
-        <span className="text-xs font-extrabold uppercase tracking-widest text-brand-orange">Canvas</span>
-        <span className="text-brand-black/30 dark:text-white/20">/</span>
-        <h1 className="truncate text-xs font-bold uppercase tracking-widest text-brand-black/70 dark:text-white/70">Interactive Builder</h1>
+        <h1 className="text-xs font-extrabold uppercase tracking-widest text-brand-orange">Studio</h1>
       </div>
       <div className="flex items-center gap-2">
         <button
