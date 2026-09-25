@@ -5,8 +5,12 @@ import { useAuth } from "@/lib/auth";
 import { ShieldAlert, ArrowLeft, Loader2, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/forgot-password")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    email: (search.email as string) || "",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    email?: string | undefined;
+  } => ({
+    email: (search["email"] as string) || undefined,
   }),
   head: () => ({
     meta: [

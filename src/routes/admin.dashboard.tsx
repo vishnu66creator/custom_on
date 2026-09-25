@@ -14,7 +14,6 @@ import { AddProduct } from "@/admin/pages/AddProduct";
 import { EditProduct } from "@/admin/pages/EditProduct";
 import { Orders } from "@/admin/pages/Orders";
 import { OrderDetails } from "@/admin/pages/OrderDetails";
-import { CustomDesigns } from "@/admin/pages/CustomDesigns";
 import { Stickers } from "@/admin/pages/Stickers";
 import { Fonts } from "@/admin/pages/Fonts";
 import { Categories } from "@/admin/pages/Categories";
@@ -23,7 +22,6 @@ import { Reviews } from "@/admin/pages/Reviews";
 import { Coupons } from "@/admin/pages/Coupons";
 import { Analytics } from "@/admin/pages/Analytics";
 import { Notifications } from "@/admin/pages/Notifications";
-import { Settings } from "@/admin/pages/Settings";
 
 // Hooks
 import { useProducts } from "@/admin/hooks/useProducts";
@@ -53,30 +51,30 @@ function AdminDashboardRoute() {
 
 function AdminDashboardLayout() {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [deletingProduct, setDeletingProduct] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [deletingProduct, setDeletingProduct] = useState<any>(null);
 
   const { products, addProduct, updateProduct, deleteProduct } = useProducts();
   const { orders, updateStatus } = useOrders();
-  const { users, toggleUserStatus, updateUserRole } = useUsers();
+  const { users, toggleUserStatus, updateUserRole, refresh: refreshUsers, loading: usersLoading } = useUsers();
 
-  const handleSelectOrder = (order) => {
+  const handleSelectOrder = (order: any) => {
     setSelectedOrder(order);
     setActiveTab("order-details");
   };
 
-  const handleEditProduct = (prod) => {
+  const handleEditProduct = (prod: any) => {
     setEditingProduct(prod);
     setActiveTab("edit-product");
   };
 
-  const handleSaveNewProduct = async (prodData) => {
+  const handleSaveNewProduct = async (prodData: any) => {
     await addProduct(prodData);
     setActiveTab("products");
   };
 
-  const handleSaveEditedProduct = async (id, prodData) => {
+  const handleSaveEditedProduct = async (id: any, prodData: any) => {
     await updateProduct(id, prodData);
     setEditingProduct(null);
     setActiveTab("products");
@@ -98,6 +96,8 @@ function AdminDashboardLayout() {
         return (
           <Users
             users={users}
+            loading={usersLoading}
+            onRefresh={refreshUsers}
             onToggleStatus={toggleUserStatus}
             onUpdateRole={updateUserRole}
           />
@@ -108,7 +108,7 @@ function AdminDashboardLayout() {
             products={products}
             onAddClick={() => setActiveTab("add-product")}
             onEdit={handleEditProduct}
-            onDelete={(p) => setDeletingProduct(p)}
+            onDelete={(p: any) => setDeletingProduct(p)}
           />
         );
       case "add-product":
@@ -142,8 +142,6 @@ function AdminDashboardLayout() {
             onUpdateStatus={updateStatus}
           />
         );
-      case "custom-designs":
-        return <CustomDesigns />;
       case "stickers":
         return <Stickers />;
       case "fonts":
@@ -160,8 +158,6 @@ function AdminDashboardLayout() {
         return <Analytics />;
       case "notifications":
         return <Notifications />;
-      case "settings":
-        return <Settings />;
       default:
         return <Dashboard orders={orders} onSelectTab={setActiveTab} />;
     }

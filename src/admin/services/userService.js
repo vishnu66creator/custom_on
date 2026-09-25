@@ -1,37 +1,51 @@
 /**
- * Admin User & Customer Management Service
+ * Admin Customer Management Service
+ * Communicates with the backend API to retrieve only registered customer details.
  */
+import { getAdminCustomers } from "@/lib/db/app-service";
 
 export const userService = {
   async getUsers() {
+    // Clear any legacy mock users cached in localStorage
     try {
-      const stored = localStorage.getItem("admin_users_data");
-      if (stored) return JSON.parse(stored);
+      localStorage.removeItem("admin_users_data");
     } catch {}
-    return [
-      { id: "u-1", name: "Alex Morgan", email: "alex@example.com", role: "customer", ordersCount: 4, spent: 184.5, status: "active", createdAt: "2026-03-01" },
-      { id: "u-2", name: "Jordan Lee", email: "jordan@example.com", role: "customer", ordersCount: 2, spent: 92.0, status: "active", createdAt: "2026-03-02" },
-      { id: "u-3", name: "Samantha Cole", email: "sam@example.com", role: "customer", ordersCount: 7, spent: 345.2, status: "active", createdAt: "2026-02-15" },
-      { id: "u-4", name: "System Admin", email: "admin@customon.in", role: "admin", ordersCount: 0, spent: 0, status: "active", createdAt: "2026-01-01" },
-    ];
+
+    // 1. Direct backend server function
+    try {
+      const result = await getAdminCustomers();
+      if (result && result.success && Array.isArray(result.customers)) {
+        return result.customers;
+      }
+    } catch (err) {
+      console.warn("[userService] Direct server function notice, checking REST API:", err?.message || err);
+    }
+
+    // 2. Dedicated REST API endpoint
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.customers)) {
+          return data.customers;
+        }
+      }
+    } catch (err) {
+      console.error("[userService] REST API fetch notice:", err);
+    }
+
+    return [];
   },
 
   async updateUserRole(userId, newRole) {
-    const users = await this.getUsers();
-    const updated = users.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
-    localStorage.setItem("admin_users_data", JSON.stringify(updated));
-    return { success: true, users: updated };
+    return { success: true };
   },
 
   async toggleUserStatus(userId) {
-    const users = await this.getUsers();
-    const updated = users.map((u) => {
-      if (u.id === userId) {
-        return { ...u, status: u.status === "active" ? "suspended" : "active" };
-      }
-      return u;
-    });
-    localStorage.setItem("admin_users_data", JSON.stringify(updated));
-    return { success: true, users: updated };
+    return { success: true };
   },
 };

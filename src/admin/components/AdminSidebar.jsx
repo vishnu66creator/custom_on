@@ -13,8 +13,6 @@ import {
   Ticket,
   BarChart3,
   Bell,
-  Settings,
-  Store,
   LogOut,
   Shield,
 } from "lucide-react";
@@ -22,18 +20,16 @@ import { useAuth } from "@/lib/auth";
 
 const ADMIN_NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "users", label: "Users & Customers", icon: Users },
+  { id: "users", label: "Registered Customers", icon: Users },
   { id: "products", label: "Product Catalog", icon: Package },
   { id: "add-product", label: "Add Product", icon: PlusCircle },
   { id: "orders", label: "Orders & Fulfillment", icon: ShoppingBag },
-  { id: "custom-designs", label: "Custom Designs", icon: Sparkles },
   { id: "categories", label: "Categories", icon: FolderTree },
   { id: "payments", label: "Payments & Invoices", icon: CreditCard },
   { id: "reviews", label: "Reviews & Ratings", icon: MessageSquare },
   { id: "coupons", label: "Coupons & Discounts", icon: Ticket },
   { id: "analytics", label: "Analytics & Sales", icon: BarChart3 },
   { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "settings", label: "Store Settings", icon: Settings },
 ];
 
 export function AdminSidebar({ activeTab, onSelectTab }) {
@@ -107,17 +103,8 @@ export function AdminSidebar({ activeTab, onSelectTab }) {
         })}
       </div>
 
-      {/* Footer / Store Link & Logout */}
+      {/* Footer / Logout */}
       <div className="p-3 border-t border-white/10 space-y-1 bg-[#09090b]/80 backdrop-blur-sm z-20">
-        <a
-          href="/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-white/60 hover:bg-white/5 hover:text-white transition"
-        >
-          <Store className="h-4 w-4 shrink-0 text-white/40" />
-          <span>View Live Store (5173)</span>
-        </a>
         <button
           onClick={() => logout()}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-red-400 hover:bg-red-950/40 transition cursor-pointer"

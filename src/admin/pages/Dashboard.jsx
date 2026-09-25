@@ -5,8 +5,8 @@ import { OrderStatusBadge } from "../components/OrderStatusBadge";
 import { formatCurrency, formatDate, formatOrderId } from "../utils/formatters";
 
 export function Dashboard({ orders = [], onSelectTab }) {
-  const totalRevenue = orders.reduce((acc, o) => acc + (o.total || 0), 0) + 14250;
-  const totalOrders = orders.length > 0 ? orders.length : 128;
+  const totalRevenue = orders.reduce((acc, o) => acc + (o.totalPrice || o.total || 0), 0);
+  const totalOrders = orders.length;
 
   return (
     <div className="space-y-8 animate-fade-in text-white">
@@ -15,28 +15,28 @@ export function Dashboard({ orders = [], onSelectTab }) {
         <StatCard
           title="Total Gross Revenue"
           value={formatCurrency(totalRevenue)}
-          change="+18.4%"
+          change=""
           isPositive={true}
           icon={DollarSign}
         />
         <StatCard
           title="Custom Orders"
           value={totalOrders}
-          change="+12.1%"
+          change=""
           isPositive={true}
           icon={ShoppingBag}
         />
         <StatCard
           title="Active Customers"
-          value="1,842"
-          change="+24.5%"
+          value={totalOrders > 0 ? totalOrders : 0}
+          change=""
           isPositive={true}
           icon={Users}
         />
         <StatCard
           title="Studio Designs"
-          value="456"
-          change="+31.0%"
+          value={totalOrders}
+          change=""
           isPositive={true}
           icon={Sparkles}
         />
@@ -74,25 +74,33 @@ export function Dashboard({ orders = [], onSelectTab }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-white/80">
-                {orders.slice(0, 5).map((order) => (
-                  <tr key={order.id} className="hover:bg-white/[0.02] transition">
-                    <td className="py-3 px-3 font-mono font-semibold text-brand-orange">
-                      {formatOrderId(order.id)}
-                    </td>
-                    <td className="py-3 px-3">
-                      {order.items && order.items[0] ? order.items[0].productName : "Custom Heavyweight Tee"}
-                    </td>
-                    <td className="py-3 px-3 font-mono font-bold">
-                      {formatCurrency(order.total)}
-                    </td>
-                    <td className="py-3 px-3">
-                      <OrderStatusBadge status={order.status || "paid"} />
-                    </td>
-                    <td className="py-3 px-3 text-white/50">
-                      {formatDate(order.createdAt)}
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-white/40">
+                      No custom orders placed yet.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  orders.slice(0, 5).map((order) => (
+                    <tr key={order.id} className="hover:bg-white/[0.02] transition">
+                      <td className="py-3 px-3 font-mono font-semibold text-brand-orange">
+                        {formatOrderId(order.id)}
+                      </td>
+                      <td className="py-3 px-3">
+                        {order.productName || (order.items && order.items[0] ? order.items[0].productName : "Custom Apparel")}
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold">
+                        {formatCurrency(order.totalPrice || order.total || 0)}
+                      </td>
+                      <td className="py-3 px-3">
+                        <OrderStatusBadge status={order.status || "Pending"} />
+                      </td>
+                      <td className="py-3 px-3 text-white/50">
+                        {formatDate(order.date || order.createdAt)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -128,21 +136,21 @@ export function Dashboard({ orders = [], onSelectTab }) {
               </button>
 
               <button
-                onClick={() => onSelectTab("custom-designs")}
+                onClick={() => onSelectTab("users")}
                 className="w-full flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-brand-orange/40 hover:bg-white/10 transition group text-left"
               >
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
-                    <Sparkles className="h-4 w-4" />
+                  <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                    <Users className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white group-hover:text-purple-400 transition">
-                      Review Custom Designs
+                    <div className="text-xs font-bold text-white group-hover:text-blue-400 transition">
+                      Registered Customers
                     </div>
-                    <div className="text-[10px] text-white/40">Studio creations & art</div>
+                    <div className="text-[10px] text-white/40">Manage store accounts</div>
                   </div>
                 </div>
-                <ArrowUpRight className="h-4 w-4 text-white/30 group-hover:text-purple-400 transition" />
+                <ArrowUpRight className="h-4 w-4 text-white/30 group-hover:text-blue-400 transition" />
               </button>
 
               <button

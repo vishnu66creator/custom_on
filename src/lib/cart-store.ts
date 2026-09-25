@@ -21,7 +21,7 @@ export type CartItem = {
   frontPreview: string | null;
   backPreview: string | null;
   summary: string;
-  designState?: FullDesignState | Record<string, unknown> | null;
+  designState?: any;
 };
 
 export function getCart(): Promise<CartItem[]> {

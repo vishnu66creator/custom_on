@@ -34,6 +34,8 @@ import { Route as AdminResetPasswordRouteImport } from './routes/admin.reset-pas
 import { Route as AdminVerifyOtpRouteImport } from './routes/admin.verify-otp'
 import { Route as ResetPasswordIndexRouteImport } from './routes/reset-password.index'
 import { Route as ResetPasswordVerifyRouteImport } from './routes/reset-password.verify'
+import { Route as ApiAdminCustomersRouteImport } from './routes/api.admin.customers'
+import { Route as ApiAuthRegisterRouteImport } from './routes/api.auth.register'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -160,6 +162,16 @@ const ResetPasswordVerifyRoute = ResetPasswordVerifyRouteImport.update({
   path: '/reset-password/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminCustomersRoute = ApiAdminCustomersRouteImport.update({
+  id: '/api/admin/customers',
+  path: '/api/admin/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRegisterRoute = ApiAuthRegisterRouteImport.update({
+  id: '/api/auth/register',
+  path: '/api/auth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -187,6 +199,8 @@ export interface FileRoutesByFullPath {
   '/admin/verify-otp': typeof AdminVerifyOtpRoute
   '/reset-password/verify': typeof ResetPasswordVerifyRoute
   '/reset-password/': typeof ResetPasswordIndexRoute
+  '/api/admin/customers': typeof ApiAdminCustomersRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -214,6 +228,8 @@ export interface FileRoutesByTo {
   '/admin/verify-otp': typeof AdminVerifyOtpRoute
   '/reset-password/verify': typeof ResetPasswordVerifyRoute
   '/reset-password': typeof ResetPasswordIndexRoute
+  '/api/admin/customers': typeof ApiAdminCustomersRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -242,6 +258,8 @@ export interface FileRoutesById {
   '/admin/verify-otp': typeof AdminVerifyOtpRoute
   '/reset-password/verify': typeof ResetPasswordVerifyRoute
   '/reset-password/': typeof ResetPasswordIndexRoute
+  '/api/admin/customers': typeof ApiAdminCustomersRoute
+  '/api/auth/register': typeof ApiAuthRegisterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -271,6 +289,8 @@ export interface FileRouteTypes {
     | '/admin/verify-otp'
     | '/reset-password/verify'
     | '/reset-password/'
+    | '/api/admin/customers'
+    | '/api/auth/register'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -298,6 +318,8 @@ export interface FileRouteTypes {
     | '/admin/verify-otp'
     | '/reset-password/verify'
     | '/reset-password'
+    | '/api/admin/customers'
+    | '/api/auth/register'
   id:
     | '__root__'
     | '/'
@@ -325,6 +347,8 @@ export interface FileRouteTypes {
     | '/admin/verify-otp'
     | '/reset-password/verify'
     | '/reset-password/'
+    | '/api/admin/customers'
+    | '/api/auth/register'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -348,6 +372,8 @@ export interface RootRouteChildren {
   VerifyEmailRoute: typeof VerifyEmailRoute
   ResetPasswordVerifyRoute: typeof ResetPasswordVerifyRoute
   ResetPasswordIndexRoute: typeof ResetPasswordIndexRoute
+  ApiAdminCustomersRoute: typeof ApiAdminCustomersRoute
+  ApiAuthRegisterRoute: typeof ApiAuthRegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -527,6 +553,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/customers': {
+      id: '/api/admin/customers'
+      path: '/api/admin/customers'
+      fullPath: '/api/admin/customers'
+      preLoaderRoute: typeof ApiAdminCustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/register': {
+      id: '/api/auth/register'
+      path: '/api/auth/register'
+      fullPath: '/api/auth/register'
+      preLoaderRoute: typeof ApiAuthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -569,6 +609,8 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailRoute: VerifyEmailRoute,
   ResetPasswordVerifyRoute: ResetPasswordVerifyRoute,
   ResetPasswordIndexRoute: ResetPasswordIndexRoute,
+  ApiAdminCustomersRoute: ApiAdminCustomersRoute,
+  ApiAuthRegisterRoute: ApiAuthRegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

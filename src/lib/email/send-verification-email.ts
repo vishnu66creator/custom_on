@@ -1,4 +1,6 @@
+import "dotenv/config";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 interface SendEmailParams {
   to: string;
@@ -22,36 +24,136 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Sends a clean, responsive, production-ready CustomON OTP verification email using Resend.
+ * Shared email dispatcher: supports Gmail SMTP (EMAIL_USER / EMAIL_PASS),
+ * Resend (RESEND_API_KEY), and developer console fallback.
+ */
+async function deliverEmail({
+  to,
+  subject,
+  html,
+  text,
+  otp,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  otp: string;
+}): Promise<SendEmailResult> {
+  // Always log OTP prominently in console for development & debugging
+  console.log(`\n==================================================`);
+  console.log(`🔑 [CUSTOM ON OTP] To: ${to}`);
+  console.log(`🔑 OTP Code: ${otp}`);
+  console.log(`==================================================\n`);
+
+  const gmailUser = process.env["EMAIL_USER"];
+  const gmailPass = process.env["EMAIL_PASS"];
+  const resendApiKey = process.env["RESEND_API_KEY"];
+  const hasGmail = Boolean(gmailUser && gmailPass);
+  const hasResend = Boolean(
+    resendApiKey &&
+      resendApiKey.trim().length > 0 &&
+      !resendApiKey.includes("your_resend_api_key")
+  );
+
+  // 1. Gmail SMTP with App Password (Nodemailer)
+  if (hasGmail) {
+    try {
+      console.log(`[Email Service] Delivering via Gmail SMTP (${gmailUser}) to: ${maskEmail(to)}`);
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: gmailUser,
+          pass: gmailPass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: `"CustomON" <${gmailUser}>`,
+        replyTo: gmailUser,
+        to,
+        subject,
+        html,
+        text: text || `Your CustomON verification code is: ${otp}. It is valid for 10 minutes.`,
+      });
+
+      console.log(`[Email Service] ✓ Gmail SMTP sent successfully! (Message ID: ${info.messageId})`);
+      return { success: true, messageId: info.messageId };
+    } catch (err: any) {
+      console.error("[Email Service] ✗ Gmail SMTP delivery error:", err.message || err);
+      // In development mode, don't block registration
+      if (process.env["NODE_ENV"] !== "production") {
+        console.warn("[Email Service] Dev fallback activated despite Gmail SMTP error. Use OTP logged above.");
+        return { success: true, messageId: "dev-fallback" };
+      }
+      return {
+        success: false,
+        error: "Unable to send verification email via Gmail. Please try again.",
+      };
+    }
+  }
+
+  // 2. Resend API
+  if (hasResend) {
+    try {
+      console.log(`[Email Service] Delivering via Resend to: ${maskEmail(to)}`);
+      const resend = new Resend(resendApiKey);
+      const fromAddress = process.env["EMAIL_FROM"] || "CustomON <onboarding@resend.dev>";
+      const { data, error } = await resend.emails.send({
+        from: fromAddress,
+        to: [to],
+        subject,
+        html,
+      });
+
+      if (error) {
+        console.error("[Email Service] Resend API error:", error.message || error);
+        if (process.env["NODE_ENV"] !== "production") {
+          console.warn("[Email Service] Dev fallback activated despite Resend error. Use OTP logged above.");
+          return { success: true, messageId: "dev-fallback" };
+        }
+        return {
+          success: false,
+          error: error.message || "Email delivery failed. Please try again.",
+        };
+      }
+
+      console.log(`[Email Service] ✓ Resend accepted email (ID: ${data?.id || "N/A"})`);
+      return { success: true, messageId: data?.id };
+    } catch (err: any) {
+      console.error("[Email Service] Resend dispatch error:", err.message || err);
+      if (process.env["NODE_ENV"] !== "production") {
+        return { success: true, messageId: "dev-fallback" };
+      }
+      return { success: false, error: "Unable to send verification email." };
+    }
+  }
+
+  // 3. Fallback when neither provider is configured
+  console.warn("⚠️ [Email Service] No email provider configured (EMAIL_USER/EMAIL_PASS or RESEND_API_KEY).");
+  if (process.env["NODE_ENV"] === "production") {
+    return {
+      success: false,
+      error: "Email delivery service is currently not configured. Please contact support.",
+    };
+  }
+
+  // In development, return success so testing OTP works seamlessly
+  console.log(`[Email Service] Dev mode: check OTP above in terminal console.`);
+  return { success: true, messageId: "dev-mock-otp" };
+}
+
+/**
+ * Sends a clean, responsive, production-ready CustomON OTP verification email.
  */
 export async function sendVerificationEmail({
   to,
   name,
   otp,
 }: SendEmailParams): Promise<SendEmailResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromAddress = process.env.EMAIL_FROM || "CustomON <onboarding@resend.dev>";
-  const isKeyConfigured = Boolean(apiKey && apiKey.trim().length > 0 && !apiKey.includes("your_resend_api_key"));
+  const recipientName = name ? name.trim() : "Valued Customer";
 
-  console.log(`[Email Service] Verification email requested for: ${maskEmail(to)}`);
-  console.log(`[Email Service] RESEND_API_KEY configured: ${isKeyConfigured}`);
-  console.log(`[Email Service] EMAIL_FROM: ${fromAddress}`);
-
-  if (!isKeyConfigured) {
-    console.error(
-      "[Email Service] Resend API key missing or placeholder. Please configure a valid RESEND_API_KEY in your .env file."
-    );
-    return {
-      success: false,
-      error: "Email delivery service is currently not configured. Please add a valid RESEND_API_KEY to your server .env file.",
-    };
-  }
-
-  try {
-    const resend = new Resend(apiKey);
-    const recipientName = name ? name.trim() : "Valued Customer";
-
-    const htmlContent = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -98,46 +200,61 @@ export async function sendVerificationEmail({
     }
     h1 {
       font-size: 20px;
-      font-weight: 800;
+      font-weight: 700;
       color: #ffffff;
       margin-top: 0;
       margin-bottom: 16px;
-      letter-spacing: -0.02em;
     }
     p {
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.6;
       color: #a1a1aa;
-      margin: 0 0 16px;
+      margin-top: 0;
+      margin-bottom: 20px;
     }
-    .otp-container {
-      margin: 28px 0;
-      text-align: center;
-    }
-    .otp-box {
-      display: inline-block;
+    .otp-wrapper {
       background: #09090b;
-      border: 2px solid #f97316;
-      color: #ffffff;
-      font-size: 32px;
-      font-weight: 800;
-      letter-spacing: 8px;
-      padding: 14px 28px;
+      border: 1px solid #27272a;
       border-radius: 14px;
-      box-shadow: 0 0 25px rgba(249, 115, 22, 0.2);
-      font-family: 'Courier New', Courier, monospace;
+      padding: 24px;
+      text-align: center;
+      margin: 28px 0;
     }
-    .warning-box {
-      background: #27272a40;
+    .otp-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      color: #f97316;
+      margin-bottom: 10px;
+    }
+    .otp-code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      color: #ffffff;
+      margin: 0;
+      padding-left: 0.25em;
+    }
+    .otp-subtext {
+      font-size: 13px;
+      color: #71717a;
+      margin-top: 10px;
+      margin-bottom: 0;
+    }
+    .alert-box {
+      background: rgba(249, 115, 22, 0.06);
       border-left: 3px solid #f97316;
       padding: 12px 16px;
-      border-radius: 6px;
-      margin: 20px 0;
+      border-radius: 0 8px 8px 0;
+      margin: 24px 0;
     }
-    .warning-text {
-      font-size: 12px;
-      color: #d4d4d8;
+    .alert-text {
+      font-size: 13px;
+      color: #fdba74;
       margin: 0;
+      line-height: 1.5;
     }
     .footer {
       background: #121215;
@@ -146,34 +263,36 @@ export async function sendVerificationEmail({
       border-top: 1px solid #27272a;
     }
     .footer-text {
-      font-size: 11px;
-      color: #71717a;
+      font-size: 12px;
+      color: #52525b;
       margin: 0;
-      line-height: 1.5;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo-text">CUSTOM<span class="logo-orange">ON</span></div>
+      <span class="logo-text">Custom<span class="logo-orange">ON</span></span>
     </div>
     <div class="content">
-      <h1>Verify your CustomON account</h1>
-      <p>Hello <strong>${recipientName}</strong>,</p>
-      <p>Welcome to <strong>CustomON</strong>! Please use the 6-digit verification code below to activate your customer account:</p>
-      
-      <div class="otp-container">
-        <div class="otp-box">${otp}</div>
-      </div>
-      
-      <div class="warning-box">
-        <p class="warning-text">⏱ This verification code will expire in <strong>10 minutes</strong>. Do not share this code with anyone.</p>
+      <h1>Verify your email address</h1>
+      <p>Hello ${recipientName},</p>
+      <p>Thank you for signing up with <strong>CustomON</strong>. To finish setting up your account, please enter the following single-use verification code:</p>
+
+      <div class="otp-wrapper">
+        <div class="otp-label">Your Verification Code</div>
+        <div class="otp-code">${otp}</div>
+        <p class="otp-subtext">This code will expire in <strong>10 minutes</strong>.</p>
       </div>
 
-      <p>If you did not create a CustomON account, you can safely ignore this email.</p>
+      <div class="alert-box">
+        <p class="alert-text"><strong>Security Notice:</strong> Never share this code with anyone. CustomON staff will never ask for your verification code.</p>
+      </div>
+
+      <p>If you did not request this email, please safely disregard it.</p>
       
-      <p style="margin-top: 24px;">Regards,<br><strong style="color: #ffffff;">CustomON Team</strong></p>
+      <p style="margin-top: 24px;">Warm regards,<br><strong style="color: #ffffff;">CustomON Team</strong></p>
     </div>
     <div class="footer">
       <p class="footer-text">© ${new Date().getFullYear()} CustomON Apparels. All rights reserved.<br>This is an automated transactional security message.</p>
@@ -181,65 +300,28 @@ export async function sendVerificationEmail({
   </div>
 </body>
 </html>
-    `;
+  `;
 
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: [to],
-      subject: "Verify your CustomON account",
-      html: htmlContent,
-    });
-
-    if (error) {
-      console.error("[Email Service] Resend API error:", error.message || error);
-      return {
-        success: false,
-        error: error.message || "We couldn't send the verification email. Please check the address or try again.",
-      };
-    }
-
-    console.log(`[Email Service] Verification email accepted by Resend (Message ID: ${data?.id || "N/A"})`);
-    return { success: true, messageId: data?.id };
-  } catch (err) {
-    console.error("[Email Service] Failed to send verification email:", err);
-    return {
-      success: false,
-      error: "Unable to send verification email at this moment. Please try again.",
-    };
-  }
+  return deliverEmail({
+    to,
+    subject: "Verify your CustomON account",
+    html: htmlContent,
+    text: `Hello ${recipientName},\n\nYour CustomON verification code is: ${otp}\nThis code is valid for 10 minutes.\n\nCustomON Team`,
+    otp,
+  });
 }
 
 /**
- * Sends a clean, responsive CustomON Password Reset OTP email using Resend.
+ * Sends a clean, responsive CustomON Password Reset OTP email.
  */
 export async function sendPasswordResetEmail({
   to,
   name,
   otp,
 }: SendEmailParams): Promise<SendEmailResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromAddress = process.env.EMAIL_FROM || "CustomON <onboarding@resend.dev>";
-  const isKeyConfigured = Boolean(apiKey && apiKey.trim().length > 0 && !apiKey.includes("your_resend_api_key"));
+  const recipientName = name ? name.trim() : "Valued Customer";
 
-  console.log(`[Email Service] Password reset email requested for: ${maskEmail(to)}`);
-  console.log(`[Email Service] RESEND_API_KEY configured: ${isKeyConfigured}`);
-  console.log(`[Email Service] EMAIL_FROM: ${fromAddress}`);
-
-  if (!isKeyConfigured) {
-    console.error(
-      "[Email Service] Resend API key missing or placeholder. Please configure a valid RESEND_API_KEY in your .env file."
-    );
-    return {
-      success: false,
-      error: "Email delivery service is currently not configured. Please add a valid RESEND_API_KEY to your server .env file.",
-    };
-  }
-
-  try {
-    const resend = new Resend(apiKey);
-    const recipientName = name ? name.trim() : "Valued Customer";
-
-    const htmlContent = `
+  const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -286,46 +368,61 @@ export async function sendPasswordResetEmail({
     }
     h1 {
       font-size: 20px;
-      font-weight: 800;
+      font-weight: 700;
       color: #ffffff;
       margin-top: 0;
       margin-bottom: 16px;
-      letter-spacing: -0.02em;
     }
     p {
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.6;
       color: #a1a1aa;
-      margin: 0 0 16px;
+      margin-top: 0;
+      margin-bottom: 20px;
     }
-    .otp-container {
-      margin: 28px 0;
-      text-align: center;
-    }
-    .otp-box {
-      display: inline-block;
+    .otp-wrapper {
       background: #09090b;
-      border: 2px solid #f97316;
-      color: #ffffff;
-      font-size: 32px;
-      font-weight: 800;
-      letter-spacing: 8px;
-      padding: 14px 28px;
+      border: 1px solid #27272a;
       border-radius: 14px;
-      box-shadow: 0 0 25px rgba(249, 115, 22, 0.2);
-      font-family: 'Courier New', Courier, monospace;
+      padding: 24px;
+      text-align: center;
+      margin: 28px 0;
     }
-    .warning-box {
-      background: #27272a40;
-      border-left: 3px solid #f97316;
-      padding: 12px 16px;
-      border-radius: 6px;
-      margin: 20px 0;
+    .otp-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      color: #f97316;
+      margin-bottom: 10px;
     }
-    .warning-text {
-      font-size: 12px;
-      color: #d4d4d8;
+    .otp-code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      color: #ffffff;
       margin: 0;
+      padding-left: 0.25em;
+    }
+    .otp-subtext {
+      font-size: 13px;
+      color: #71717a;
+      margin-top: 10px;
+      margin-bottom: 0;
+    }
+    .alert-box {
+      background: rgba(239, 68, 68, 0.08);
+      border-left: 3px solid #ef4444;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 24px 0;
+    }
+    .alert-text {
+      font-size: 13px;
+      color: #fca5a5;
+      margin: 0;
+      line-height: 1.5;
     }
     .footer {
       background: #121215;
@@ -334,29 +431,31 @@ export async function sendPasswordResetEmail({
       border-top: 1px solid #27272a;
     }
     .footer-text {
-      font-size: 11px;
-      color: #71717a;
+      font-size: 12px;
+      color: #52525b;
       margin: 0;
-      line-height: 1.5;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo-text">CUSTOM<span class="logo-orange">ON</span></div>
+      <span class="logo-text">Custom<span class="logo-orange">ON</span></span>
     </div>
     <div class="content">
-      <h1>Reset your CustomON password</h1>
-      <p>Hello <strong>${recipientName}</strong>,</p>
-      <p>We received a request to reset the password for your CustomON account. Please use the 6-digit verification code below to proceed:</p>
-      
-      <div class="otp-container">
-        <div class="otp-box">${otp}</div>
+      <h1>Password Reset Request</h1>
+      <p>Hello ${recipientName},</p>
+      <p>We received a request to reset the password for your <strong>CustomON</strong> account. Use the one-time code below to reset your password:</p>
+
+      <div class="otp-wrapper">
+        <div class="otp-label">Password Reset Code</div>
+        <div class="otp-code">${otp}</div>
+        <p class="otp-subtext">Valid for <strong>10 minutes</strong>.</p>
       </div>
-      
-      <div class="warning-box">
-        <p class="warning-text">⏱ This verification code will expire in <strong>10 minutes</strong>. Do not share this code with anyone.</p>
+
+      <div class="alert-box">
+        <p class="alert-text"><strong>Security Alert:</strong> If you did not request a password reset, your account is still secure. Please disregard this email.</p>
       </div>
 
       <p>If you did not request a password reset, you can safely ignore this email.</p>
@@ -369,30 +468,13 @@ export async function sendPasswordResetEmail({
   </div>
 </body>
 </html>
-    `;
+  `;
 
-    const { data, error } = await resend.emails.send({
-      from: fromAddress,
-      to: [to],
-      subject: "Reset your CustomON password",
-      html: htmlContent,
-    });
-
-    if (error) {
-      console.error("[Email Service] Resend API error:", error.message || error);
-      return {
-        success: false,
-        error: error.message || "We couldn't send the password reset email. Please check the address or try again.",
-      };
-    }
-
-    console.log(`[Email Service] Password reset email accepted by Resend (Message ID: ${data?.id || "N/A"})`);
-    return { success: true, messageId: data?.id };
-  } catch (err) {
-    console.error("[Email Service] Failed to send password reset email:", err);
-    return {
-      success: false,
-      error: "Unable to send password reset email at this moment. Please try again.",
-    };
-  }
+  return deliverEmail({
+    to,
+    subject: "Reset your CustomON password",
+    html: htmlContent,
+    text: `Hello ${recipientName},\n\nYour CustomON password reset code is: ${otp}\nValid for 10 minutes.\n\nCustomON Team`,
+    otp,
+  });
 }

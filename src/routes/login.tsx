@@ -14,10 +14,16 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    verify: (search.verify as string) || undefined,
-    email: (search.email as string) || undefined,
-    redirect: (search.redirect as string) || undefined,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    verify?: string | undefined;
+    email?: string | undefined;
+    redirect?: string | undefined;
+  } => ({
+    verify: (search["verify"] as string) || undefined,
+    email: (search["email"] as string) || undefined,
+    redirect: (search["redirect"] as string) || undefined,
   }),
   head: () => ({
     meta: [

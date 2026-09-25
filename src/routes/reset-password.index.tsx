@@ -15,9 +15,14 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    email: (search.email as string) || "",
-    token: (search.token as string) || "",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    email?: string | undefined;
+    token?: string | undefined;
+  } => ({
+    email: (search["email"] as string) || undefined,
+    token: (search["token"] as string) || undefined,
   }),
   head: () => ({
     meta: [

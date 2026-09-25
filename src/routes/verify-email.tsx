@@ -12,9 +12,14 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/verify-email")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    email: (search.email as string) || "",
-    redirect: (search.redirect as string) || undefined,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    email?: string | undefined;
+    redirect?: string | undefined;
+  } => ({
+    email: (search["email"] as string) || undefined,
+    redirect: (search["redirect"] as string) || undefined,
   }),
   head: () => ({
     meta: [
@@ -30,13 +35,15 @@ export const Route = createFileRoute("/verify-email")({
 
 function maskEmail(emailStr: string): string {
   if (!emailStr || !emailStr.includes("@")) return emailStr;
-  const [local, domain] = emailStr.split("@");
+  const parts = emailStr.split("@");
+  const local = parts[0] ?? "";
+  const domain = parts[1] ?? "";
   if (local.length <= 2) {
-    return `${local[0]}*@${domain}`;
+    return `${local[0] ?? ""}*@${domain}`;
   }
-  const first = local[0];
+  const first = local[0] ?? "";
   const stars = "*".repeat(Math.max(3, local.length - 2));
-  const last = local[local.length - 1];
+  const last = local[local.length - 1] ?? "";
   return `${first}${stars}${last}@${domain}`;
 }
 
@@ -108,7 +115,7 @@ function VerifyEmailPage() {
     }
 
     const updated = [...otpDigits];
-    updated[index] = cleaned[0];
+    updated[index] = cleaned[0] ?? "";
     setOtpDigits(updated);
 
     if (index < 5 && cleaned[0]) {
@@ -278,7 +285,9 @@ function VerifyEmailPage() {
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={idx}
-                      ref={(el) => (inputRefs.current[idx] = el)}
+                      ref={(el) => {
+                      inputRefs.current[idx] = el;
+                    }}
                       type="text"
                       inputMode="numeric"
                       maxLength={1}

@@ -26,20 +26,22 @@ export interface User {
   id: string;
   username: string;
   role: Role;
-  name?: string;
-  email?: string;
-  phone?: string;
-  avatar?: string;
-  emailVerified?: boolean;
+  name?: string | undefined;
+  email?: string | undefined;
+  phone?: string | undefined;
+  provider?: string | undefined;
+  avatar?: string | undefined;
+  emailVerified?: boolean | undefined;
+  phoneVerified?: boolean | undefined;
 }
 
 export interface RegisterPayload {
-  email?: string;
+  email?: string | undefined;
   name: string;
-  phone?: string;
-  password?: string;
-  role?: Role;
-  username?: string;
+  phone?: string | undefined;
+  password?: string | undefined;
+  role?: Role | undefined;
+  username?: string | undefined;
 }
 
 interface AuthContextType {
@@ -428,12 +430,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     try {
       let data: {
-        email?: string;
-        username?: string;
+        email?: string | undefined;
+        username?: string | undefined;
         name: string;
-        phone?: string;
-        role?: Role;
-        password?: string;
+        phone?: string | undefined;
+        role?: Role | undefined;
+        password?: string | undefined;
       };
 
       if (typeof inputOrUsername === "object" && inputOrUsername !== null) {

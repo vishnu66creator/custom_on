@@ -21,7 +21,7 @@ export interface SavedDesign {
   customTextSize: number;
   customImage: string | null;
   price: number;
-  designState?: FullDesignState | Record<string, unknown> | null;
+  designState?: any;
 }
 
 export function getWishlistProducts(_username?: string): Promise<string[]> {

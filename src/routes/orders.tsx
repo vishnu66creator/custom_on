@@ -175,7 +175,7 @@ function MyOrdersPage() {
                   ? order.id
                   : `ORD-${order.id.slice(-6).toUpperCase()}`;
 
-                const orderDate = new Date(order.createdAt).toLocaleDateString("en-US", {
+                const orderDate = new Date((order as any).createdAt || order.date).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                   year: "numeric",

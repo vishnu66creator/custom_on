@@ -20,39 +20,45 @@ export function Orders({ orders = [], onSelectOrder }) {
       accessor: "customer",
       render: (row) => (
         <div>
-          <div className="font-bold text-white text-xs">{row.shippingAddress?.fullName || row.customerName || "Customer"}</div>
-          <div className="text-[10px] text-white/40">{row.shippingAddress?.email || "Direct Studio Order"}</div>
+          <div className="font-bold text-white text-xs">
+            {row.shippingName || row.customerName || "Customer"}
+          </div>
+          <div className="text-[10px] text-white/40 font-mono">
+            {row.shippingPhone || row.shippingAddress || "Storefront Order"}
+          </div>
         </div>
       ),
     },
     {
-      header: "Items",
-      accessor: "items",
+      header: "Garment / Item",
+      accessor: "productName",
       render: (row) => (
         <span className="text-xs text-white/80">
-          {row.items?.length || 1} item(s)
+          {row.productName || "Custom Apparel"} {row.size ? `(${row.size})` : ""}
         </span>
       ),
     },
     {
       header: "Amount",
-      accessor: "total",
+      accessor: "totalPrice",
       render: (row) => (
         <span className="font-mono font-bold text-white text-xs">
-          {formatCurrency(row.total || 0)}
+          {formatCurrency(row.totalPrice || row.total || 0)}
         </span>
       ),
     },
     {
       header: "Status",
       accessor: "status",
-      render: (row) => <OrderStatusBadge status={row.status || "paid"} />,
+      render: (row) => <OrderStatusBadge status={row.status || "Pending"} />,
     },
     {
       header: "Placed At",
-      accessor: "createdAt",
+      accessor: "date",
       render: (row) => (
-        <span className="text-xs text-white/50">{formatDate(row.createdAt)}</span>
+        <span className="text-xs text-white/50">
+          {formatDate(row.date || row.createdAt)}
+        </span>
       ),
     },
     {
@@ -72,12 +78,26 @@ export function Orders({ orders = [], onSelectOrder }) {
 
   return (
     <div className="space-y-6 text-white animate-fade-in">
-      <div>
-        <h2 className="font-display text-xl font-bold uppercase tracking-tight">Custom Orders & Fulfillment</h2>
-        <p className="text-xs text-white/50">Manage printing queue, customer orders, shipping labels, and status updates.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl font-bold uppercase tracking-tight">
+            Customer Orders & Fulfillment
+          </h2>
+          <p className="text-xs text-white/50">
+            Real customer orders placed through the CustomOn application.
+          </p>
+        </div>
+        <div className="text-xs text-white/40 font-mono">
+          Total: {orders.length} {orders.length === 1 ? "order" : "orders"}
+        </div>
       </div>
 
-      <DataTable columns={columns} data={orders} searchKey="id" emptyMessage="No orders found." />
+      <DataTable
+        columns={columns}
+        data={orders}
+        searchKey="id"
+        emptyMessage="No customer orders placed yet."
+      />
     </div>
   );
 }

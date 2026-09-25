@@ -5,14 +5,14 @@ interface SendSmsParams {
 }
 
 export async function sendSmsOtp({ to, otp, message }: SendSmsParams): Promise<{ success: boolean; error?: string }> {
-  const smsProvider = (process.env.SMS_PROVIDER || "").toLowerCase();
-  const fast2SmsKey = process.env.FAST2SMS_API_KEY || process.env.SMS_API_KEY;
-  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-  const twilioFrom = process.env.TWILIO_PHONE_NUMBER || process.env.SMS_SENDER_ID;
-  const msg91AuthKey = process.env.MSG91_AUTH_KEY;
-  const msg91TemplateId = process.env.MSG91_TEMPLATE_ID;
-  const webhookUrl = process.env.SMS_WEBHOOK_URL;
+  const smsProvider = (process.env["SMS_PROVIDER"] || "").toLowerCase();
+  const fast2SmsKey = process.env["FAST2SMS_API_KEY"] || process.env["SMS_API_KEY"];
+  const twilioSid = process.env["TWILIO_ACCOUNT_SID"];
+  const twilioToken = process.env["TWILIO_AUTH_TOKEN"];
+  const twilioFrom = process.env["TWILIO_PHONE_NUMBER"] || process.env["SMS_SENDER_ID"];
+  const msg91AuthKey = process.env["MSG91_AUTH_KEY"];
+  const msg91TemplateId = process.env["MSG91_TEMPLATE_ID"];
+  const webhookUrl = process.env["SMS_WEBHOOK_URL"];
 
   const defaultMessage = message || `Your CustomON verification code is ${otp}. Valid for 10 minutes. Do not share this OTP with anyone.`;
 
@@ -128,7 +128,7 @@ export async function sendSmsOtp({ to, otp, message }: SendSmsParams): Promise<{
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(process.env.SMS_API_KEY ? { Authorization: `Bearer ${process.env.SMS_API_KEY}` } : {}),
+          ...(process.env["SMS_API_KEY"] ? { Authorization: `Bearer ${process.env["SMS_API_KEY"]}` } : {}),
         },
         body: JSON.stringify({
           to,
@@ -150,7 +150,7 @@ export async function sendSmsOtp({ to, otp, message }: SendSmsParams): Promise<{
   // Fallback notice if no SMS provider credentials are configured in .env
   console.warn("⚠️ Warning: No SMS provider configured (e.g. FAST2SMS_API_KEY, TWILIO_ACCOUNT_SID, MSG91_AUTH_KEY).");
   
-  if (process.env.NODE_ENV === "production") {
+  if (process.env["NODE_ENV"] === "production") {
     return { success: false, error: "SMS delivery service is not configured. Please contact support." };
   }
 

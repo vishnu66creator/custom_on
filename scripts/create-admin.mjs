@@ -2,7 +2,6 @@ import "dotenv/config";
 import { pgTable, text, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 
 const customers = pgTable(
@@ -52,7 +51,13 @@ async function main() {
   const db = drizzle(pool);
 
   const cleanEmail = emailArg.trim().toLowerCase();
-  const passwordHash = await bcrypt.hash(passwordArg, 10);
+  const salt = crypto.randomBytes(16).toString("hex");
+  const passwordHash = await new Promise((resolve, reject) => {
+    crypto.scrypt(passwordArg, salt, 64, (err, derivedKey) => {
+      if (err) reject(err);
+      resolve(`${salt}:${derivedKey.toString("hex")}`);
+    });
+  });
   const id = `admin-${crypto.randomUUID()}`;
 
   try {

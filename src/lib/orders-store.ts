@@ -28,7 +28,7 @@ export type Order = {
   totalPrice: number;
   size: string;
   targetGroup: "Men";
-  designState?: FullDesignState | Record<string, unknown> | null;
+  designState?: any;
 };
 
 export function getOrders(scope: "customer" | "all" = "customer"): Promise<Order[]> {

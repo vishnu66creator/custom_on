@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CreditCard, RefreshCw } from "lucide-react";
+import { CreditCard, RefreshCw, CheckCircle2 } from "lucide-react";
 import { paymentService } from "../services/paymentService";
 import { DataTable } from "../components/DataTable";
 import { formatCurrency } from "../utils/formatters";
@@ -11,7 +11,7 @@ export function Payments() {
   const loadPayments = async () => {
     setLoading(true);
     const data = await paymentService.getPayments();
-    setPayments(data);
+    setPayments(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
@@ -19,8 +19,9 @@ export function Payments() {
     loadPayments();
   }, []);
 
-  const handleRefund = async (id) => {
-    const res = await paymentService.refundPayment(id);
+  const handleRefund = async (row) => {
+    if (!window.confirm(`Issue refund for transaction ${row.id} (Order ${row.orderId})?`)) return;
+    const res = await paymentService.refundPayment(row.id, row.orderId);
     alert(res.message);
     loadPayments();
   };
@@ -77,8 +78,8 @@ export function Payments() {
       render: (row) =>
         row.status === "Captured" ? (
           <button
-            onClick={() => handleRefund(row.id)}
-            className="px-2.5 py-1 rounded-lg border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider hover:bg-red-950/40 transition"
+            onClick={() => handleRefund(row)}
+            className="px-2.5 py-1 rounded-lg border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider hover:bg-red-950/40 transition cursor-pointer"
           >
             Refund
           </button>
@@ -90,12 +91,28 @@ export function Payments() {
 
   return (
     <div className="space-y-6 text-white animate-fade-in">
-      <div>
-        <h2 className="font-display text-xl font-bold uppercase tracking-tight">Payments & Settlement Ledger</h2>
-        <p className="text-xs text-white/50">Track customer gateway transactions, captured charges, and refunds.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="font-display text-xl font-bold uppercase tracking-tight">Payments & Settlement Ledger</h2>
+          <p className="text-xs text-white/50">Real-time payment gateway transactions and settlements from database orders.</p>
+        </div>
+
+        <button
+          onClick={loadPayments}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-brand-orange/40 text-xs font-semibold text-white/80 hover:text-white transition cursor-pointer w-fit"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-brand-orange" : ""}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
-      <DataTable columns={columns} data={payments} searchKey="id" emptyMessage="No transactions recorded." />
+      <DataTable
+        columns={columns}
+        data={payments}
+        searchKey="id"
+        emptyMessage="No payment transactions recorded yet."
+      />
     </div>
   );
 }

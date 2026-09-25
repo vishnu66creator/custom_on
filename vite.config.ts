@@ -6,7 +6,7 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-const port = Number(process.env.VITE_PORT || process.env.PORT) || 5173;
+const port = Number(process.env["VITE_PORT"] || process.env["PORT"]) || 5173;
 
 function printConnectedUrlsPlugin() {
   return {
@@ -29,6 +29,15 @@ export default defineConfig({
     server: {
       port,
       strictPort: false,
+      cors: {
+        origin: [
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+          "http://localhost:5174",
+          "http://127.0.0.1:5174",
+        ],
+        credentials: true,
+      },
     },
   },
   tanstackStart: {

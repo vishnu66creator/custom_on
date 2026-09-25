@@ -1976,12 +1976,13 @@ function LayerView({
   onRotate,
   onDelete,
   onDuplicate,
+  onUpdateText,
 }: {
   layer: Layer;
   selected: boolean;
   printHeight: number;
   onPointerDown: (e: ReactPointerEvent) => void;
-  onResize: (e: ReactPointerEvent) => void;
+  onResize: (e: ReactPointerEvent, mode?: "move" | "resize" | "resize-tl" | "resize-tr" | "resize-bl" | "resize-br" | "rotate") => void;
   onRotate: (e: ReactPointerEvent) => void;
   onDelete: () => void;
   onDuplicate: () => void;
